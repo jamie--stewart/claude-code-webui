@@ -213,6 +213,7 @@ export function ChatInput({
       <form onSubmit={handleSubmit} className="relative">
         <textarea
           ref={inputRef}
+          data-testid="chat-input"
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -229,6 +230,7 @@ export function ChatInput({
           {isLoading && currentRequestId && (
             <button
               type="button"
+              data-testid="chat-abort"
               onClick={onAbort}
               className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
               title="Stop (ESC)"
@@ -238,6 +240,7 @@ export function ChatInput({
           )}
           <button
             type="submit"
+            data-testid="chat-submit"
             disabled={!input.trim() || isLoading}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 text-sm"
           >

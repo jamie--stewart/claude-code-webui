@@ -79,6 +79,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   return (
     <div
       ref={messagesContainerRef}
+      data-testid="chat-messages"
       className="flex-1 overflow-y-auto bg-white/70 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60 p-3 sm:p-6 mb-3 sm:mb-6 rounded-2xl shadow-sm backdrop-blur-sm flex flex-col"
     >
       {messages.length === 0 ? (

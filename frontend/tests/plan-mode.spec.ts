@@ -5,8 +5,22 @@ import { test, expect } from "@playwright/test";
  * Tests for permission mode toggle functionality and plan display
  */
 
+// Mock projects response
+const mockProjects = {
+  projects: [{ path: "/test/project", encodedName: "test-project" }],
+};
+
 test.describe("Plan Mode Functionality", () => {
   test.beforeEach(async ({ page }) => {
+    // Mock the projects API
+    await page.route("**/api/projects", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockProjects),
+      });
+    });
+
     // Navigate to the main chat page (not demo mode)
     await page.goto("/", { waitUntil: "networkidle" });
 
@@ -17,7 +31,7 @@ test.describe("Plan Mode Functionality", () => {
     await page.click('[data-testid="project-card"]');
 
     // Wait for chat page to load
-    await page.waitForSelector('input[placeholder*="message"]', {
+    await page.waitForSelector('[data-testid="chat-input"]', {
       timeout: 10000,
     });
   });
@@ -66,24 +80,24 @@ test.describe("Plan Mode Functionality", () => {
   test("should display permission mode tooltip correctly", async ({ page }) => {
     const permissionToggle = page.locator('button[title*="Click to cycle"]');
 
-    // Check default mode tooltip
+    // Check default mode tooltip (includes keyboard shortcut)
     await expect(permissionToggle).toHaveAttribute(
       "title",
-      "Current: normal mode - Click to cycle",
+      /Current: normal mode - Click to cycle/,
     );
 
     // Switch to plan mode and check tooltip
     await permissionToggle.click();
     await expect(permissionToggle).toHaveAttribute(
       "title",
-      "Current: plan mode - Click to cycle",
+      /Current: plan mode - Click to cycle/,
     );
 
     // Switch to accept edits mode and check tooltip
     await permissionToggle.click();
     await expect(permissionToggle).toHaveAttribute(
       "title",
-      "Current: accept edits - Click to cycle",
+      /Current: accept edits - Click to cycle/,
     );
   });
 
@@ -95,7 +109,7 @@ test.describe("Plan Mode Functionality", () => {
     await expect(permissionToggle).toHaveText(/⏸ plan mode/);
 
     // Type a message (but don't send)
-    const messageInput = page.locator('input[placeholder*="message"]');
+    const messageInput = page.locator('[data-testid="chat-input"]');
     await messageInput.fill("Test message for plan mode");
 
     // Permission mode should remain unchanged
@@ -111,12 +125,21 @@ test.describe("Plan Mode Functionality", () => {
 
 test.describe("Plan Display and Interaction", () => {
   test.beforeEach(async ({ page }) => {
+    // Mock the projects API
+    await page.route("**/api/projects", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockProjects),
+      });
+    });
+
     await page.goto("/", { waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="project-card"]', {
       timeout: 10000,
     });
     await page.click('[data-testid="project-card"]');
-    await page.waitForSelector('input[placeholder*="message"]', {
+    await page.waitForSelector('[data-testid="chat-input"]', {
       timeout: 10000,
     });
 
@@ -127,8 +150,8 @@ test.describe("Plan Display and Interaction", () => {
   });
 
   test("should handle plan mode message input correctly", async ({ page }) => {
-    const messageInput = page.locator('input[placeholder*="message"]');
-    const submitButton = page.locator('button[type="submit"]');
+    const messageInput = page.locator('[data-testid="chat-input"]');
+    const submitButton = page.locator('[data-testid="chat-submit"]');
 
     // Input should be enabled and submit button should say "Plan"
     await expect(messageInput).toBeEnabled();
@@ -144,8 +167,8 @@ test.describe("Plan Display and Interaction", () => {
   });
 
   test("should disable input during loading state", async ({ page }) => {
-    const messageInput = page.locator('input[placeholder*="message"]');
-    const submitButton = page.locator('button[type="submit"]');
+    const messageInput = page.locator('[data-testid="chat-input"]');
+    const submitButton = page.locator('[data-testid="chat-submit"]');
 
     // Fill in a message
     await messageInput.fill("Create a simple todo app");
@@ -162,12 +185,21 @@ test.describe("Plan Display and Interaction", () => {
 
 test.describe("Plan Mode UI Integration", () => {
   test("should work correctly with other UI elements", async ({ page }) => {
+    // Mock the projects API
+    await page.route("**/api/projects", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockProjects),
+      });
+    });
+
     await page.goto("/", { waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="project-card"]', {
       timeout: 10000,
     });
     await page.click('[data-testid="project-card"]');
-    await page.waitForSelector('input[placeholder*="message"]', {
+    await page.waitForSelector('[data-testid="chat-input"]', {
       timeout: 10000,
     });
 
@@ -201,12 +233,21 @@ test.describe("Plan Mode UI Integration", () => {
   test("should maintain consistent styling across permission modes", async ({
     page,
   }) => {
+    // Mock the projects API
+    await page.route("**/api/projects", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockProjects),
+      });
+    });
+
     await page.goto("/", { waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="project-card"]', {
       timeout: 10000,
     });
     await page.click('[data-testid="project-card"]');
-    await page.waitForSelector('input[placeholder*="message"]', {
+    await page.waitForSelector('[data-testid="chat-input"]', {
       timeout: 10000,
     });
 
@@ -240,12 +281,21 @@ test.describe("Plan Mode Error States", () => {
   test("should handle permission mode toggle during error states", async ({
     page,
   }) => {
+    // Mock the projects API
+    await page.route("**/api/projects", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockProjects),
+      });
+    });
+
     await page.goto("/", { waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="project-card"]', {
       timeout: 10000,
     });
     await page.click('[data-testid="project-card"]');
-    await page.waitForSelector('input[placeholder*="message"]', {
+    await page.waitForSelector('[data-testid="chat-input"]', {
       timeout: 10000,
     });
 
@@ -256,7 +306,7 @@ test.describe("Plan Mode Error States", () => {
     await expect(permissionToggle).toHaveText(/⏸ plan mode/);
 
     // Try to simulate a scenario where permission toggle works despite other issues
-    const messageInput = page.locator('input[placeholder*="message"]');
+    const messageInput = page.locator('[data-testid="chat-input"]');
     await messageInput.fill(""); // Empty message
 
     // Toggle should still work
@@ -270,12 +320,21 @@ test.describe("Plan Mode Error States", () => {
 
 test.describe("Plan Mode Accessibility", () => {
   test("should be accessible via keyboard navigation", async ({ page }) => {
+    // Mock the projects API
+    await page.route("**/api/projects", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockProjects),
+      });
+    });
+
     await page.goto("/", { waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="project-card"]', {
       timeout: 10000,
     });
     await page.click('[data-testid="project-card"]');
-    await page.waitForSelector('input[placeholder*="message"]', {
+    await page.waitForSelector('[data-testid="chat-input"]', {
       timeout: 10000,
     });
 
@@ -297,12 +356,21 @@ test.describe("Plan Mode Accessibility", () => {
   });
 
   test("should have proper ARIA attributes", async ({ page }) => {
+    // Mock the projects API
+    await page.route("**/api/projects", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockProjects),
+      });
+    });
+
     await page.goto("/", { waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="project-card"]', {
       timeout: 10000,
     });
     await page.click('[data-testid="project-card"]');
-    await page.waitForSelector('input[placeholder*="message"]', {
+    await page.waitForSelector('[data-testid="chat-input"]', {
       timeout: 10000,
     });
 
