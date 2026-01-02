@@ -1,0 +1,67 @@
+# Lefthook configuration for pre-commit quality checks
+# Install: brew install lefthook (macOS) or download from https://github.com/evilmartians/lefthook/releases
+# Setup: lefthook install
+
+pre-commit:
+  commands:
+    # Beads sync - flush pending changes before commit (runs first, sequentially)
+    beads-sync:
+      priority: 1
+      run: ./scripts/beads-sync.sh
+      skip:
+        - merge
+        - rebase
+
+    # Format checking (runs in parallel with other checks)
+    format-check-frontend:
+      priority: 2
+      root: frontend/
+      run: npm run format:check
+      glob: "*.{ts,tsx,js,jsx,json,css,md}"
+
+    format-check-backend:
+      priority: 2
+      root: backend/
+      run: npm run format:check
+      glob: "*.{ts,js,json,md}"
+
+    # Linting (runs in parallel with other checks)
+    lint-frontend:
+      priority: 2
+      root: frontend/
+      run: npm run lint
+      glob: "*.{ts,tsx,js,jsx}"
+
+    lint-backend:
+      priority: 2
+      root: backend/
+      run: npm run lint
+      glob: "*.ts"
+
+    # Type checking (runs in parallel with other checks)
+    typecheck-frontend:
+      priority: 2
+      root: frontend/
+      run: npm run typecheck
+
+    typecheck-backend:
+      priority: 2
+      root: backend/
+      run: npm run typecheck
+
+    # Testing (runs in parallel with other checks)
+    test-frontend:
+      priority: 2
+      root: frontend/
+      run: npm run test:run
+
+    test-backend:
+      priority: 2
+      root: backend/
+      run: npm run test
+
+post-merge:
+  commands:
+    # Import beads changes after merge
+    beads-import:
+      run: ./scripts/beads-import.sh
