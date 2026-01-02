@@ -131,6 +131,7 @@ export function HistoryView({ encodedName }: HistoryViewProps) {
           {conversations.map((conversation) => (
             <div
               key={conversation.sessionId}
+              data-testid="conversation-card"
               onClick={() => handleConversationSelect(conversation.sessionId)}
               className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer shadow-sm hover:shadow-md"
             >

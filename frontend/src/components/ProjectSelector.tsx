@@ -86,6 +86,7 @@ export function ProjectSelector() {
               {projects.map((project) => (
                 <button
                   key={project.path}
+                  data-testid="project-card"
                   onClick={() => handleProjectSelect(project.path)}
                   className="w-full flex items-center gap-3 p-4 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-left"
                 >

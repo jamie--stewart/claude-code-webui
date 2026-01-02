@@ -8,6 +8,7 @@ export function HistoryButton({ onClick }: HistoryButtonProps) {
   return (
     <button
       onClick={onClick}
+      data-testid="history-button"
       className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md"
       aria-label="View conversation history"
     >
