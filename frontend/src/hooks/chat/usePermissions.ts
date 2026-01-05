@@ -19,6 +19,14 @@ interface AskUserQuestionRequest {
   toolUseId: string;
 }
 
+/**
+ * Queued AskUserQuestion request (without isOpen flag, as queue presence indicates openness)
+ */
+interface QueuedAskUserQuestionRequest {
+  questions: AskUserQuestion[];
+  toolUseId: string;
+}
+
 interface UsePermissionsOptions {
   onPermissionModeChange?: (mode: PermissionMode) => void;
 }
@@ -67,26 +75,47 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     setIsPermissionMode(false);
   }, []);
 
-  // AskUserQuestion state management
-  const [askUserQuestionRequest, setAskUserQuestionRequest] =
-    useState<AskUserQuestionRequest | null>(null);
+  // AskUserQuestion state management with queue to handle race conditions
+  // When multiple AskUserQuestion requests arrive, they are queued
+  // and processed one at a time to prevent overwriting
+  const [askUserQuestionQueue, setAskUserQuestionQueue] = useState<
+    QueuedAskUserQuestionRequest[]
+  >([]);
 
+  // Enqueue a new AskUserQuestion request
   const showAskUserQuestion = useCallback(
     (questions: AskUserQuestion[], toolUseId: string) => {
-      setAskUserQuestionRequest({
-        isOpen: true,
-        questions,
-        toolUseId,
-      });
+      setAskUserQuestionQueue((prev) => [...prev, { questions, toolUseId }]);
       setIsPermissionMode(true);
     },
     [],
   );
 
+  // Dequeue the current request (called after submit or cancel)
   const closeAskUserQuestion = useCallback(() => {
-    setAskUserQuestionRequest(null);
-    setIsPermissionMode(false);
+    setAskUserQuestionQueue((prev) => {
+      const newQueue = prev.slice(1);
+      // If queue is now empty, exit permission mode
+      if (newQueue.length === 0) {
+        setIsPermissionMode(false);
+      }
+      return newQueue;
+    });
   }, []);
+
+  // Get the current (first) request from the queue for display
+  // Returns the request in the expected format with isOpen flag
+  const askUserQuestionRequest: AskUserQuestionRequest | null =
+    askUserQuestionQueue.length > 0
+      ? {
+          isOpen: true,
+          questions: askUserQuestionQueue[0].questions,
+          toolUseId: askUserQuestionQueue[0].toolUseId,
+        }
+      : null;
+
+  // Count of pending questions (useful for UI indication)
+  const pendingAskUserQuestionCount = askUserQuestionQueue.length;
 
   const allowToolTemporary = useCallback(
     (pattern: string, baseTools?: string[]) => {
@@ -136,5 +165,6 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     askUserQuestionRequest,
     showAskUserQuestion,
     closeAskUserQuestion,
+    pendingAskUserQuestionCount,
   };
 }

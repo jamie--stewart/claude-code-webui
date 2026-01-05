@@ -6,12 +6,15 @@ interface AskUserQuestionPanelProps {
   questions: AskUserQuestion[];
   onSubmit: (answers: Record<string, string>) => void;
   onCancel: () => void;
+  /** Number of pending questions in queue (including current one) */
+  pendingCount?: number;
 }
 
 export function AskUserQuestionPanel({
   questions,
   onSubmit,
   onCancel,
+  pendingCount = 1,
 }: AskUserQuestionPanelProps) {
   // Track answers for each question (keyed by question index)
   const [answers, setAnswers] = useState<Record<number, string[]>>({});
@@ -191,6 +194,11 @@ export function AskUserQuestionPanel({
         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
           Claude has a question
         </h3>
+        {pendingCount > 1 && (
+          <span className="ml-auto px-2 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full">
+            +{pendingCount - 1} more pending
+          </span>
+        )}
       </div>
 
       {/* Questions */}

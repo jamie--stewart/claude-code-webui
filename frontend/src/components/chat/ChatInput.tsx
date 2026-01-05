@@ -42,6 +42,8 @@ interface AskUserQuestionData {
   questions: AskUserQuestion[];
   onSubmit: (answers: Record<string, string>) => void;
   onCancel: () => void;
+  /** Number of pending questions in queue (including current one) */
+  pendingCount?: number;
 }
 
 interface ChatInputProps {
@@ -195,6 +197,7 @@ export function ChatInput({
         questions={askUserQuestionData.questions}
         onSubmit={askUserQuestionData.onSubmit}
         onCancel={askUserQuestionData.onCancel}
+        pendingCount={askUserQuestionData.pendingCount}
       />
     );
   }
