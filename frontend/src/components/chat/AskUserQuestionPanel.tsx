@@ -179,7 +179,10 @@ export function AskUserQuestionPanel({
   });
 
   return (
-    <div className="flex-shrink-0 px-4 py-4 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl backdrop-blur-sm shadow-sm">
+    <div
+      data-testid="ask-user-question-panel"
+      className="flex-shrink-0 px-4 py-4 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl backdrop-blur-sm shadow-sm"
+    >
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
