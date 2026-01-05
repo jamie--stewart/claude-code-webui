@@ -131,18 +131,18 @@ test.describe("AskUserQuestion Display", () => {
     await page.locator('[data-testid="chat-submit"]').click();
 
     // Wait for the AskUserQuestion panel to appear
-    await expect(page.getByText("Claude has a question")).toBeVisible({
-      timeout: 10000,
-    });
+    const panel = page.getByTestId("ask-user-question-panel");
+    await expect(panel).toBeVisible({ timeout: 10000 });
+    await expect(panel.getByText("Claude has a question")).toBeVisible();
     await expect(
-      page.getByText("Which authentication method should we use?"),
+      panel.getByText("Which authentication method should we use?"),
     ).toBeVisible();
 
     // Verify options are displayed
-    await expect(page.getByText("JWT")).toBeVisible();
-    await expect(page.getByText("OAuth")).toBeVisible();
-    await expect(page.getByText("Session")).toBeVisible();
-    await expect(page.getByText("Other")).toBeVisible();
+    await expect(panel.getByText("JWT", { exact: true })).toBeVisible();
+    await expect(panel.getByText("OAuth", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Session", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Other", { exact: true })).toBeVisible();
   });
 });
 
@@ -760,13 +760,12 @@ test.describe("AskUserQuestion Multiple Questions", () => {
     await page.locator('[data-testid="chat-submit"]').click();
 
     // Wait for panel to appear
-    await expect(page.getByText("Claude has a question")).toBeVisible({
-      timeout: 10000,
-    });
+    const panel = page.getByTestId("ask-user-question-panel");
+    await expect(panel).toBeVisible({ timeout: 10000 });
 
     // Both questions should be visible
-    await expect(page.getByText("Frontend framework?")).toBeVisible();
-    await expect(page.getByText("Backend framework?")).toBeVisible();
+    await expect(panel.getByText("Frontend framework?")).toBeVisible();
+    await expect(panel.getByText("Backend framework?")).toBeVisible();
 
     // Select Vue for frontend and Django for backend
     await page.getByRole("button", { name: /Vue/i }).click();
