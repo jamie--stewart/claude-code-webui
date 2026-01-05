@@ -7,6 +7,7 @@ import type {
   ProjectInfo,
   PermissionMode,
   AskUserQuestion,
+  ToolResultContent,
 } from "../types";
 import { useClaudeStreaming } from "../hooks/useClaudeStreaming";
 import { useChatState } from "../hooks/chat/useChatState";
@@ -157,6 +158,7 @@ export function ChatPage() {
       tools?: string[],
       hideUserMessage = false,
       overridePermissionMode?: PermissionMode,
+      toolResult?: ToolResultContent,
     ) => {
       const content = messageContent || input.trim();
       if (!content || isLoading) return;
@@ -188,6 +190,7 @@ export function ChatPage() {
             allowedTools: tools || allowedTools,
             ...(workingDirectory ? { workingDirectory } : {}),
             permissionMode: overridePermissionMode || permissionMode,
+            ...(toolResult ? { toolResult } : {}),
           } as ChatRequest),
         });
 
@@ -367,23 +370,54 @@ export function ChatPage() {
   // AskUserQuestion handlers
   const handleAskUserQuestionSubmit = useCallback(
     (answers: Record<string, string>) => {
+      const toolUseId = askUserQuestionRequest?.toolUseId;
       closeAskUserQuestion();
-      if (currentSessionId) {
-        // Format the answers as JSON for Claude to process
-        const answerMessage = JSON.stringify(answers);
-        sendMessage(answerMessage, allowedTools, true);
+      if (currentSessionId && toolUseId) {
+        // Format answers as JSON and send as proper tool_result
+        const answerContent = JSON.stringify(answers);
+        const toolResult: ToolResultContent = {
+          tool_use_id: toolUseId,
+          content: answerContent,
+          is_error: false,
+        };
+        // Send with tool_result - message is just for logging/display purposes
+        sendMessage(answerContent, allowedTools, true, undefined, toolResult);
       }
     },
-    [closeAskUserQuestion, currentSessionId, sendMessage, allowedTools],
+    [
+      askUserQuestionRequest,
+      closeAskUserQuestion,
+      currentSessionId,
+      sendMessage,
+      allowedTools,
+    ],
   );
 
   const handleAskUserQuestionCancel = useCallback(() => {
+    const toolUseId = askUserQuestionRequest?.toolUseId;
     closeAskUserQuestion();
-    // Send a cancel/skip response
-    if (currentSessionId) {
-      sendMessage("User cancelled the question.", allowedTools, true);
+    if (currentSessionId && toolUseId) {
+      // Send cancellation as tool_result with is_error: true
+      const toolResult: ToolResultContent = {
+        tool_use_id: toolUseId,
+        content: "User cancelled the question.",
+        is_error: true,
+      };
+      sendMessage(
+        "User cancelled the question.",
+        allowedTools,
+        true,
+        undefined,
+        toolResult,
+      );
     }
-  }, [closeAskUserQuestion, currentSessionId, sendMessage, allowedTools]);
+  }, [
+    askUserQuestionRequest,
+    closeAskUserQuestion,
+    currentSessionId,
+    sendMessage,
+    allowedTools,
+  ]);
 
   // Create permission data for inline permission interface
   const permissionData = permissionRequest

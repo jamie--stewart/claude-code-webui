@@ -16,6 +16,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui",
     "playwright:install": "npx playwright install",
     "record-demo": "npx tsx scripts/record-demo.ts",
     "capture-screenshots": "npx tsx scripts/capture-screenshots.ts"

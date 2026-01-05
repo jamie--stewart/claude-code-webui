@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Context } from "hono";
 import { handleChatRequest } from "./chat";
-import type { ChatRequest } from "../../shared/types";
+import type { ChatRequest, ToolResultContent } from "../../shared/types";
 import { query } from "@anthropic-ai/claude-code";
 
 // Define minimal mock types for Claude Code SDK to maintain type safety in tests
@@ -571,6 +571,287 @@ describe("Chat Handler - Permission Mode Tests", () => {
       await handleChatRequest(mockContext, requestAbortControllers);
 
       expect(capturedController).toBeInstanceOf(AbortController);
+    });
+  });
+
+  describe("Tool Result Handling (AskUserQuestion Responses)", () => {
+    it("should send tool_result format when toolResult is provided with sessionId", async () => {
+      const toolResult: ToolResultContent = {
+        tool_use_id: "toolu_12345",
+        content: '{"Auth method":"OAuth"}',
+        is_error: false,
+      };
+
+      const chatRequest: ChatRequest = {
+        message: '{"Auth method":"OAuth"}',
+        requestId: "test-tool-result",
+        sessionId: "session-abc",
+        toolResult,
+      };
+
+      mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
+
+      let capturedPrompt: any = null;
+
+      mockQuery.mockImplementation(
+        (args: any) =>
+          ({
+            [Symbol.asyncIterator]: async function* () {
+              capturedPrompt = args.prompt;
+              yield {
+                type: "assistant",
+                message: { content: [{ type: "text", text: "Acknowledged" }] },
+                session_id: "session-abc",
+                parent_tool_use_id: null,
+              } as any;
+            },
+            interrupt: vi.fn(),
+            next: vi.fn(),
+            return: vi.fn(),
+            throw: vi.fn(),
+          }) as any,
+      );
+
+      const response = await handleChatRequest(
+        mockContext,
+        requestAbortControllers,
+      );
+
+      // Read response to complete
+      const reader = response.body!.getReader();
+      while (true) {
+        const { done } = await reader.read();
+        if (done) break;
+      }
+
+      // Verify the prompt is an async iterable (not a string)
+      expect(typeof capturedPrompt).not.toBe("string");
+      expect(capturedPrompt[Symbol.asyncIterator]).toBeDefined();
+
+      // Consume the iterable to verify the message structure
+      const messages: any[] = [];
+      for await (const msg of capturedPrompt) {
+        messages.push(msg);
+      }
+
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toMatchObject({
+        type: "user",
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_12345",
+              content: '{"Auth method":"OAuth"}',
+            },
+          ],
+        },
+        parent_tool_use_id: null,
+        session_id: "session-abc",
+      });
+      // Verify is_error is not included when false
+      expect(messages[0].message.content[0]).not.toHaveProperty("is_error");
+    });
+
+    it("should include is_error flag when cancellation toolResult is provided", async () => {
+      const toolResult: ToolResultContent = {
+        tool_use_id: "toolu_67890",
+        content: "User cancelled the question.",
+        is_error: true,
+      };
+
+      const chatRequest: ChatRequest = {
+        message: "User cancelled the question.",
+        requestId: "test-cancel",
+        sessionId: "session-def",
+        toolResult,
+      };
+
+      mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
+
+      let capturedPrompt: any = null;
+
+      mockQuery.mockImplementation(
+        (args: any) =>
+          ({
+            [Symbol.asyncIterator]: async function* () {
+              capturedPrompt = args.prompt;
+              yield {
+                type: "assistant",
+                message: { content: [{ type: "text", text: "Cancelled" }] },
+                session_id: "session-def",
+                parent_tool_use_id: null,
+              } as any;
+            },
+            interrupt: vi.fn(),
+            next: vi.fn(),
+            return: vi.fn(),
+            throw: vi.fn(),
+          }) as any,
+      );
+
+      await handleChatRequest(mockContext, requestAbortControllers);
+
+      // Consume the iterable
+      const messages: any[] = [];
+      for await (const msg of capturedPrompt) {
+        messages.push(msg);
+      }
+
+      expect(messages).toHaveLength(1);
+      expect(messages[0].message.content[0]).toMatchObject({
+        type: "tool_result",
+        tool_use_id: "toolu_67890",
+        content: "User cancelled the question.",
+        is_error: true,
+      });
+    });
+
+    it("should use string prompt when toolResult is provided without sessionId", async () => {
+      const toolResult: ToolResultContent = {
+        tool_use_id: "toolu_no_session",
+        content: "Some answer",
+        is_error: false,
+      };
+
+      const chatRequest: ChatRequest = {
+        message: "Some answer",
+        requestId: "test-no-session",
+        // No sessionId provided
+        toolResult,
+      };
+
+      mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
+
+      let capturedPrompt: any = null;
+
+      mockQuery.mockImplementation(
+        (args: any) =>
+          ({
+            [Symbol.asyncIterator]: async function* () {
+              capturedPrompt = args.prompt;
+              yield {
+                type: "assistant",
+                message: { content: [{ type: "text", text: "Response" }] },
+                session_id: "new-session",
+                parent_tool_use_id: null,
+              } as any;
+            },
+            interrupt: vi.fn(),
+            next: vi.fn(),
+            return: vi.fn(),
+            throw: vi.fn(),
+          }) as any,
+      );
+
+      await handleChatRequest(mockContext, requestAbortControllers);
+
+      // Without sessionId, toolResult is ignored and string prompt is used
+      expect(typeof capturedPrompt).toBe("string");
+      expect(capturedPrompt).toBe("Some answer");
+    });
+
+    it("should use string prompt when only message is provided (no toolResult)", async () => {
+      const chatRequest: ChatRequest = {
+        message: "Regular message",
+        requestId: "test-regular-message",
+        sessionId: "session-ghi",
+      };
+
+      mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
+
+      let capturedPrompt: any = null;
+
+      mockQuery.mockImplementation(
+        (args: any) =>
+          ({
+            [Symbol.asyncIterator]: async function* () {
+              capturedPrompt = args.prompt;
+              yield {
+                type: "assistant",
+                message: { content: [{ type: "text", text: "Response" }] },
+                session_id: "session-ghi",
+                parent_tool_use_id: null,
+              } as any;
+            },
+            interrupt: vi.fn(),
+            next: vi.fn(),
+            return: vi.fn(),
+            throw: vi.fn(),
+          }) as any,
+      );
+
+      await handleChatRequest(mockContext, requestAbortControllers);
+
+      // Without toolResult, string prompt is used
+      expect(typeof capturedPrompt).toBe("string");
+      expect(capturedPrompt).toBe("Regular message");
+    });
+
+    it("should handle toolResult with all optional parameters", async () => {
+      const toolResult: ToolResultContent = {
+        tool_use_id: "toolu_full",
+        content: '{"Framework":"React","Database":"PostgreSQL"}',
+        is_error: false,
+      };
+
+      const chatRequest: ChatRequest = {
+        message: '{"Framework":"React","Database":"PostgreSQL"}',
+        requestId: "test-full-params",
+        sessionId: "session-full",
+        allowedTools: ["Bash", "Edit"],
+        workingDirectory: "/project",
+        permissionMode: "acceptEdits",
+        toolResult,
+      };
+
+      mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
+
+      mockQuery.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          yield {
+            type: "assistant",
+            message: { content: [{ type: "text", text: "Response" }] },
+            session_id: "session-full",
+            parent_tool_use_id: null,
+          } as any;
+        },
+        interrupt: vi.fn(),
+        next: vi.fn(),
+        return: vi.fn(),
+        throw: vi.fn(),
+      } as any);
+
+      const response = await handleChatRequest(
+        mockContext,
+        requestAbortControllers,
+      );
+
+      // Verify response completes successfully
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let allChunks = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        allChunks += decoder.decode(value);
+      }
+
+      // Should contain claude_json and done messages
+      const lines = allChunks.trim().split("\n");
+      expect(lines.length).toBeGreaterThanOrEqual(2);
+
+      // Verify SDK was called with correct options
+      expect(mockQuery).toHaveBeenCalledWith({
+        prompt: expect.anything(), // Could be string or async iterable
+        options: expect.objectContaining({
+          resume: "session-full",
+          allowedTools: ["Bash", "Edit"],
+          cwd: "/project",
+          permissionMode: "acceptEdits",
+        }),
+      });
     });
   });
 });

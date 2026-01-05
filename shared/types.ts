@@ -4,6 +4,16 @@ export interface StreamResponse {
   error?: string;
 }
 
+/**
+ * Tool result structure for responding to tool_use requests
+ * (e.g., AskUserQuestion responses)
+ */
+export interface ToolResultContent {
+  tool_use_id: string;
+  content: string;
+  is_error?: boolean;
+}
+
 export interface ChatRequest {
   message: string;
   sessionId?: string;
@@ -11,6 +21,12 @@ export interface ChatRequest {
   allowedTools?: string[];
   workingDirectory?: string;
   permissionMode?: "default" | "plan" | "acceptEdits";
+  /**
+   * Optional tool result for responding to tool_use requests.
+   * When provided, the backend will construct a proper SDKUserMessage
+   * with tool_result content instead of sending a plain text prompt.
+   */
+  toolResult?: ToolResultContent;
 }
 
 export interface AbortRequest {

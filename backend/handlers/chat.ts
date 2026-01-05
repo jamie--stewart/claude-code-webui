@@ -1,7 +1,58 @@
 import { Context } from "hono";
-import { query, type PermissionMode } from "@anthropic-ai/claude-code";
-import type { ChatRequest, StreamResponse } from "../../shared/types.ts";
+import {
+  query,
+  type PermissionMode,
+  type SDKUserMessage,
+} from "@anthropic-ai/claude-code";
+import type {
+  ChatRequest,
+  StreamResponse,
+  ToolResultContent,
+} from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
+import { randomUUID } from "node:crypto";
+
+/**
+ * Creates an SDKUserMessage with tool_result content for responding to tool_use requests.
+ * This is the proper format for responding to interactive tools like AskUserQuestion.
+ *
+ * @param toolResult - The tool result content with tool_use_id, content, and optional is_error flag
+ * @param sessionId - The current session ID
+ * @returns SDKUserMessage with proper tool_result format
+ */
+function createToolResultMessage(
+  toolResult: ToolResultContent,
+  sessionId: string,
+): SDKUserMessage {
+  return {
+    type: "user",
+    message: {
+      role: "user",
+      content: [
+        {
+          type: "tool_result",
+          tool_use_id: toolResult.tool_use_id,
+          content: toolResult.content,
+          // Only include is_error when true (omit for successful responses)
+          ...(toolResult.is_error === true ? { is_error: true } : {}),
+        },
+      ],
+    },
+    parent_tool_use_id: null,
+    session_id: sessionId,
+    uuid: randomUUID(),
+  };
+}
+
+/**
+ * Creates an AsyncIterable that yields a single SDKUserMessage.
+ * Used for streaming input to the SDK query function.
+ */
+async function* createSingleMessageIterable(
+  message: SDKUserMessage,
+): AsyncIterable<SDKUserMessage> {
+  yield message;
+}
 
 /**
  * Executes a Claude command and yields streaming responses
@@ -13,6 +64,7 @@ import { logger } from "../utils/logger.ts";
  * @param allowedTools - Optional array of allowed tool names
  * @param workingDirectory - Optional working directory for Claude execution
  * @param permissionMode - Optional permission mode for Claude execution
+ * @param toolResult - Optional tool result for responding to tool_use requests
  * @returns AsyncGenerator yielding StreamResponse objects
  */
 async function* executeClaudeCommand(
@@ -24,23 +76,37 @@ async function* executeClaudeCommand(
   allowedTools?: string[],
   workingDirectory?: string,
   permissionMode?: PermissionMode,
+  toolResult?: ToolResultContent,
 ): AsyncGenerator<StreamResponse> {
   let abortController: AbortController;
 
   try {
-    // Process commands that start with '/'
-    let processedMessage = message;
-    if (message.startsWith("/")) {
-      // Remove the '/' and send just the command
-      processedMessage = message.substring(1);
-    }
-
     // Create and store AbortController for this request
     abortController = new AbortController();
     requestAbortControllers.set(requestId, abortController);
 
+    // Determine the prompt format based on whether we have a toolResult
+    let prompt: string | AsyncIterable<SDKUserMessage>;
+
+    if (toolResult && sessionId) {
+      // Use structured tool_result format for tool responses (e.g., AskUserQuestion)
+      const toolResultMessage = createToolResultMessage(toolResult, sessionId);
+      prompt = createSingleMessageIterable(toolResultMessage);
+      logger.chat.debug("Sending tool_result response: {toolResult}", {
+        toolResult,
+      });
+    } else {
+      // Use plain text prompt for regular messages
+      let processedMessage = message;
+      if (message.startsWith("/")) {
+        // Remove the '/' and send just the command
+        processedMessage = message.substring(1);
+      }
+      prompt = processedMessage;
+    }
+
     for await (const sdkMessage of query({
-      prompt: processedMessage,
+      prompt,
       options: {
         abortController,
         executable: "node" as const,
@@ -113,6 +179,7 @@ export async function handleChatRequest(
           chatRequest.allowedTools,
           chatRequest.workingDirectory,
           chatRequest.permissionMode,
+          chatRequest.toolResult,
         )) {
           const data = JSON.stringify(chunk) + "\n";
           controller.enqueue(new TextEncoder().encode(data));
