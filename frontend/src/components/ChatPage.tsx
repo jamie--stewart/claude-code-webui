@@ -6,6 +6,7 @@ import type {
   ChatMessage,
   ProjectInfo,
   PermissionMode,
+  AskUserQuestion,
 } from "../types";
 import { useClaudeStreaming } from "../hooks/useClaudeStreaming";
 import { useChatState } from "../hooks/chat/useChatState";
@@ -123,6 +124,9 @@ export function ChatPage() {
     showPlanModeRequest,
     closePlanModeRequest,
     updatePermissionMode,
+    askUserQuestionRequest,
+    showAskUserQuestion,
+    closeAskUserQuestion,
   } = usePermissions({
     onPermissionModeChange: setPermissionMode,
   });
@@ -138,6 +142,13 @@ export function ChatPage() {
       }
     },
     [showPermissionRequest, showPlanModeRequest],
+  );
+
+  const handleAskUserQuestion = useCallback(
+    (questions: AskUserQuestion[], toolUseId: string) => {
+      showAskUserQuestion(questions, toolUseId);
+    },
+    [showAskUserQuestion],
   );
 
   const sendMessage = useCallback(
@@ -209,6 +220,7 @@ export function ChatPage() {
             shouldAbort = true;
             await createAbortHandler(requestId)();
           },
+          onAskUserQuestion: handleAskUserQuestion,
         };
 
         while (true) {
@@ -258,6 +270,7 @@ export function ChatPage() {
       resetRequestState,
       processStreamLine,
       handlePermissionError,
+      handleAskUserQuestion,
       createAbortHandler,
     ],
   );
@@ -351,6 +364,27 @@ export function ChatPage() {
     closePlanModeRequest();
   }, [updatePermissionMode, closePlanModeRequest]);
 
+  // AskUserQuestion handlers
+  const handleAskUserQuestionSubmit = useCallback(
+    (answers: Record<string, string>) => {
+      closeAskUserQuestion();
+      if (currentSessionId) {
+        // Format the answers as JSON for Claude to process
+        const answerMessage = JSON.stringify(answers);
+        sendMessage(answerMessage, allowedTools, true);
+      }
+    },
+    [closeAskUserQuestion, currentSessionId, sendMessage, allowedTools],
+  );
+
+  const handleAskUserQuestionCancel = useCallback(() => {
+    closeAskUserQuestion();
+    // Send a cancel/skip response
+    if (currentSessionId) {
+      sendMessage("User cancelled the question.", allowedTools, true);
+    }
+  }, [closeAskUserQuestion, currentSessionId, sendMessage, allowedTools]);
+
   // Create permission data for inline permission interface
   const permissionData = permissionRequest
     ? {
@@ -367,6 +401,15 @@ export function ChatPage() {
         onAcceptWithEdits: handlePlanAcceptWithEdits,
         onAcceptDefault: handlePlanAcceptDefault,
         onKeepPlanning: handlePlanKeepPlanning,
+      }
+    : undefined;
+
+  // Create AskUserQuestion data for question interface
+  const askUserQuestionData = askUserQuestionRequest
+    ? {
+        questions: askUserQuestionRequest.questions,
+        onSubmit: handleAskUserQuestionSubmit,
+        onCancel: handleAskUserQuestionCancel,
       }
     : undefined;
 
@@ -580,6 +623,7 @@ export function ChatPage() {
               showPermissions={isPermissionMode}
               permissionData={permissionData}
               planPermissionData={planPermissionData}
+              askUserQuestionData={askUserQuestionData}
             />
           </>
         )}
