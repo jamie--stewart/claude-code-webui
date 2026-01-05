@@ -198,8 +198,12 @@ export function isAskUserQuestionMessage(
   return message.type === "ask_user_question";
 }
 
-// Permission mode types (UI-focused subset of SDK PermissionMode)
-export type PermissionMode = "default" | "plan" | "acceptEdits";
+// Permission mode types (includes bypassPermissions for YOLO mode)
+export type PermissionMode =
+  | "default"
+  | "plan"
+  | "acceptEdits"
+  | "bypassPermissions";
 
 // SDK type integration utilities
 export function toSDKPermissionMode(uiMode: PermissionMode): SDKPermissionMode {
@@ -209,8 +213,7 @@ export function toSDKPermissionMode(uiMode: PermissionMode): SDKPermissionMode {
 export function fromSDKPermissionMode(
   sdkMode: SDKPermissionMode,
 ): PermissionMode {
-  // Filter out bypassPermissions for UI
-  return sdkMode === "bypassPermissions" ? "default" : sdkMode;
+  return sdkMode;
 }
 
 // Chat state extensions for permission mode
