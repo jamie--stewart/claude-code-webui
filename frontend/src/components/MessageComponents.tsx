@@ -13,6 +13,7 @@ import type {
 import { TimestampComponent } from "./TimestampComponent";
 import { MessageContainer } from "./messages/MessageContainer";
 import { CollapsibleDetails } from "./messages/CollapsibleDetails";
+import { CodeBlock } from "./messages/CodeBlock";
 import { MESSAGE_CONSTANTS } from "../utils/constants";
 import {
   createEditResult,
@@ -21,6 +22,10 @@ import {
   isEditToolUseResult,
   isBashToolUseResult,
 } from "../utils/contentUtils";
+import {
+  parseContentWithCodeBlocks,
+  hasCodeBlocks,
+} from "../utils/codeHighlighting";
 
 // ANSI escape sequence regex for cleaning hooks messages
 const ANSI_REGEX = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
@@ -47,6 +52,12 @@ export function ChatMessageComponent({ message }: ChatMessageComponentProps) {
     ? "bg-blue-600 text-white"
     : "bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100";
 
+  // Check if assistant message contains code blocks
+  const shouldParseCodeBlocks = !isUser && hasCodeBlocks(message.content);
+  const segments = shouldParseCodeBlocks
+    ? parseContentWithCodeBlocks(message.content)
+    : null;
+
   return (
     <MessageContainer
       alignment={isUser ? "right" : "left"}
@@ -67,9 +78,30 @@ export function ChatMessageComponent({ message }: ChatMessageComponentProps) {
           }`}
         />
       </div>
-      <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
-        {message.content}
-      </pre>
+      {segments ? (
+        <div className="text-sm leading-relaxed">
+          {segments.map((segment, index) =>
+            segment.type === "code" ? (
+              <CodeBlock
+                key={index}
+                code={segment.code}
+                language={segment.language}
+              />
+            ) : (
+              <pre
+                key={index}
+                className="whitespace-pre-wrap font-mono my-2 first:mt-0 last:mb-0"
+              >
+                {segment.content}
+              </pre>
+            ),
+          )}
+        </div>
+      ) : (
+        <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+          {message.content}
+        </pre>
+      )}
     </MessageContainer>
   );
 }
