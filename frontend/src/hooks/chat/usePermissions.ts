@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { PermissionMode } from "../../types";
+import type { PermissionMode, AskUserQuestion } from "../../types";
 
 interface PermissionRequest {
   isOpen: boolean;
@@ -11,6 +11,12 @@ interface PermissionRequest {
 interface PlanModeRequest {
   isOpen: boolean;
   planContent: string;
+}
+
+interface AskUserQuestionRequest {
+  isOpen: boolean;
+  questions: AskUserQuestion[];
+  toolUseId: string;
 }
 
 interface UsePermissionsOptions {
@@ -61,6 +67,27 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     setIsPermissionMode(false);
   }, []);
 
+  // AskUserQuestion state management
+  const [askUserQuestionRequest, setAskUserQuestionRequest] =
+    useState<AskUserQuestionRequest | null>(null);
+
+  const showAskUserQuestion = useCallback(
+    (questions: AskUserQuestion[], toolUseId: string) => {
+      setAskUserQuestionRequest({
+        isOpen: true,
+        questions,
+        toolUseId,
+      });
+      setIsPermissionMode(true);
+    },
+    [],
+  );
+
+  const closeAskUserQuestion = useCallback(() => {
+    setAskUserQuestionRequest(null);
+    setIsPermissionMode(false);
+  }, []);
+
   const allowToolTemporary = useCallback(
     (pattern: string, baseTools?: string[]) => {
       const currentAllowedTools = baseTools || allowedTools;
@@ -105,5 +132,9 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
     showPlanModeRequest,
     closePlanModeRequest,
     updatePermissionMode,
+    // AskUserQuestion
+    askUserQuestionRequest,
+    showAskUserQuestion,
+    closeAskUserQuestion,
   };
 }

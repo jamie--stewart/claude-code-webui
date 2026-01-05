@@ -102,6 +102,28 @@ export interface TodoMessage {
   timestamp: number;
 }
 
+// AskUserQuestion option structure
+export interface AskUserQuestionOption {
+  label: string;
+  description: string;
+}
+
+// AskUserQuestion question structure
+export interface AskUserQuestion {
+  question: string;
+  header: string;
+  multiSelect: boolean;
+  options: AskUserQuestionOption[];
+}
+
+// AskUserQuestion message for user interaction
+export interface AskUserQuestionMessage {
+  type: "ask_user_question";
+  questions: AskUserQuestion[];
+  toolUseId: string;
+  timestamp: number;
+}
+
 // Thinking content item from Claude SDK
 export interface ThinkingContentItem {
   type: "thinking";
@@ -130,7 +152,8 @@ export type AllMessage =
   | ToolResultMessage
   | PlanMessage
   | ThinkingMessage
-  | TodoMessage;
+  | TodoMessage
+  | AskUserQuestionMessage;
 
 // Type guard functions
 export function isChatMessage(message: AllMessage): message is ChatMessage {
@@ -167,6 +190,12 @@ export function isThinkingMessage(
 
 export function isTodoMessage(message: AllMessage): message is TodoMessage {
   return message.type === "todo";
+}
+
+export function isAskUserQuestionMessage(
+  message: AllMessage,
+): message is AskUserQuestionMessage {
+  return message.type === "ask_user_question";
 }
 
 // Permission mode types (UI-focused subset of SDK PermissionMode)
@@ -218,6 +247,7 @@ export type {
   ChatRequest,
   ProjectsResponse,
   ProjectInfo,
+  ToolResultContent,
 } from "../../shared/types";
 
 // Re-export SDK types

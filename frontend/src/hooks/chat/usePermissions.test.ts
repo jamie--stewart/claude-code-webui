@@ -161,4 +161,120 @@ describe("usePermissions", () => {
       toolUseId: "tool-123",
     });
   });
+
+  describe("AskUserQuestion state management", () => {
+    it("should initialize with null askUserQuestionRequest", () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.askUserQuestionRequest).toBeNull();
+    });
+
+    it("should show AskUserQuestion request with questions and toolUseId", () => {
+      const { result } = renderHook(() => usePermissions());
+
+      const questions = [
+        {
+          question: "Which auth method?",
+          header: "Auth",
+          multiSelect: false,
+          options: [
+            { label: "JWT", description: "JSON Web Token" },
+            { label: "OAuth", description: "OAuth 2.0" },
+          ],
+        },
+      ];
+
+      act(() => {
+        result.current.showAskUserQuestion(questions, "toolu_12345");
+      });
+
+      expect(result.current.askUserQuestionRequest).toEqual({
+        isOpen: true,
+        questions,
+        toolUseId: "toolu_12345",
+      });
+      expect(result.current.isPermissionMode).toBe(true);
+    });
+
+    it("should close AskUserQuestion request", () => {
+      const { result } = renderHook(() => usePermissions());
+
+      const questions = [
+        {
+          question: "Which feature?",
+          header: "Feature",
+          multiSelect: true,
+          options: [{ label: "Dark mode", description: "Enable dark theme" }],
+        },
+      ];
+
+      act(() => {
+        result.current.showAskUserQuestion(questions, "toolu_67890");
+      });
+
+      expect(result.current.askUserQuestionRequest).not.toBeNull();
+
+      act(() => {
+        result.current.closeAskUserQuestion();
+      });
+
+      expect(result.current.askUserQuestionRequest).toBeNull();
+      expect(result.current.isPermissionMode).toBe(false);
+    });
+
+    it("should preserve toolUseId for tool_result response correlation", () => {
+      const { result } = renderHook(() => usePermissions());
+
+      const questions = [
+        {
+          question: "Choose framework",
+          header: "Framework",
+          multiSelect: false,
+          options: [
+            { label: "React", description: "React 18" },
+            { label: "Vue", description: "Vue 3" },
+          ],
+        },
+      ];
+
+      act(() => {
+        result.current.showAskUserQuestion(questions, "toolu_unique_id");
+      });
+
+      // Verify toolUseId is preserved and accessible for building tool_result response
+      expect(result.current.askUserQuestionRequest?.toolUseId).toBe(
+        "toolu_unique_id",
+      );
+    });
+
+    it("should handle multiple questions", () => {
+      const { result } = renderHook(() => usePermissions());
+
+      const questions = [
+        {
+          question: "Which framework?",
+          header: "Framework",
+          multiSelect: false,
+          options: [{ label: "React", description: "React 18" }],
+        },
+        {
+          question: "Which database?",
+          header: "Database",
+          multiSelect: false,
+          options: [{ label: "PostgreSQL", description: "Relational DB" }],
+        },
+      ];
+
+      act(() => {
+        result.current.showAskUserQuestion(questions, "toolu_multi");
+      });
+
+      expect(result.current.askUserQuestionRequest?.questions).toHaveLength(2);
+      expect(result.current.askUserQuestionRequest?.questions[0].header).toBe(
+        "Framework",
+      );
+      expect(result.current.askUserQuestionRequest?.questions[1].header).toBe(
+        "Database",
+      );
+    });
+  });
 });

@@ -4,6 +4,7 @@ import type {
   ThinkingMessage,
   SDKMessage,
   TimestampedSDKMessage,
+  AskUserQuestion,
 } from "../types";
 import {
   convertSystemMessage,
@@ -52,6 +53,9 @@ export interface ProcessingContext {
     toolUseId: string,
   ) => void;
   onAbortRequest?: () => void;
+
+  // AskUserQuestion handling
+  onAskUserQuestion?: (questions: AskUserQuestion[], toolUseId: string) => void;
 }
 
 /**
@@ -254,6 +258,25 @@ export class UnifiedMessageProcessor {
         timestamp: options.timestamp || Date.now(),
       };
       context.addMessage(planMessage);
+    } else if (contentItem.name === "AskUserQuestion") {
+      // Special handling for AskUserQuestion - trigger interactive question dialog
+      const questions =
+        (contentItem.input?.questions as AskUserQuestion[]) || [];
+      const toolUseId = contentItem.id || "";
+
+      // Create a message for the question display
+      const askUserQuestionMessage = {
+        type: "ask_user_question" as const,
+        questions,
+        toolUseId,
+        timestamp: options.timestamp || Date.now(),
+      };
+      context.addMessage(askUserQuestionMessage);
+
+      // Trigger the question callback for interactive handling (streaming only)
+      if (options.isStreaming && context.onAskUserQuestion) {
+        context.onAskUserQuestion(questions, toolUseId);
+      }
     } else if (contentItem.name === "TodoWrite") {
       // Special handling for TodoWrite - create todo message from input
       const todoMessage = createTodoMessageFromInput(

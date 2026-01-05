@@ -37,11 +37,11 @@ test-frontend:
 test-backend:
 	cd backend && npm run test
 
-# E2E Testing (requires servers running on ports 3000 and 8080)
+# E2E Testing (requires dev server running or uses webServer config)
 test-e2e:
-	cd frontend && npx playwright test
+	cd frontend && npm run test:e2e
 test-e2e-ui:
-	cd frontend && npx playwright test --ui
+	cd frontend && npm run test:e2e:ui
 
 # Building
 build: build-frontend copy-dist build-backend

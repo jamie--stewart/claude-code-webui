@@ -4,7 +4,8 @@ import { UI_CONSTANTS, KEYBOARD_SHORTCUTS } from "../../utils/constants";
 import { useEnterBehavior } from "../../hooks/useSettings";
 import { PermissionInputPanel } from "./PermissionInputPanel";
 import { PlanPermissionInputPanel } from "./PlanPermissionInputPanel";
-import type { PermissionMode } from "../../types";
+import { AskUserQuestionPanel } from "./AskUserQuestionPanel";
+import type { PermissionMode, AskUserQuestion } from "../../types";
 
 interface PermissionData {
   patterns: string[];
@@ -37,6 +38,12 @@ interface PlanPermissionData {
     | null;
 }
 
+interface AskUserQuestionData {
+  questions: AskUserQuestion[];
+  onSubmit: (answers: Record<string, string>) => void;
+  onCancel: () => void;
+}
+
 interface ChatInputProps {
   input: string;
   isLoading: boolean;
@@ -50,6 +57,7 @@ interface ChatInputProps {
   showPermissions?: boolean;
   permissionData?: PermissionData;
   planPermissionData?: PlanPermissionData;
+  askUserQuestionData?: AskUserQuestionData;
 }
 
 export function ChatInput({
@@ -64,6 +72,7 @@ export function ChatInput({
   showPermissions = false,
   permissionData,
   planPermissionData,
+  askUserQuestionData,
 }: ChatInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isComposing, setIsComposing] = useState(false);
@@ -178,6 +187,17 @@ export function ChatInput({
     const currentIndex = modes.indexOf(current);
     return modes[(currentIndex + 1) % modes.length];
   };
+
+  // If we're in AskUserQuestion mode, show the question panel instead
+  if (showPermissions && askUserQuestionData) {
+    return (
+      <AskUserQuestionPanel
+        questions={askUserQuestionData.questions}
+        onSubmit={askUserQuestionData.onSubmit}
+        onCancel={askUserQuestionData.onCancel}
+      />
+    );
+  }
 
   // If we're in plan permission mode, show the plan permission panel instead
   if (showPermissions && planPermissionData) {
