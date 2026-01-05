@@ -1,57 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Context } from "hono";
 import { handleConversationRequest } from "./conversations";
+import { createMockContext } from "./test-utils";
 
-// Mock dependencies
+// Hoisted mocks for clean module mocking
+const mocks = vi.hoisted(() => ({
+  logDebug: vi.fn(),
+  logError: vi.fn(),
+  validateEncodedProjectName: vi.fn(),
+  loadConversation: vi.fn(),
+}));
+
 vi.mock("../utils/logger", () => ({
   logger: {
     history: {
-      debug: vi.fn(),
-      error: vi.fn(),
+      debug: mocks.logDebug,
+      error: mocks.logError,
     },
   },
 }));
 
-const mockValidateEncodedProjectName = vi.fn();
 vi.mock("../history/pathUtils", () => ({
-  validateEncodedProjectName: (...args: unknown[]) =>
-    mockValidateEncodedProjectName(...args),
+  validateEncodedProjectName: mocks.validateEncodedProjectName,
 }));
 
-const mockLoadConversation = vi.fn();
 vi.mock("../history/conversationLoader", () => ({
-  loadConversation: (...args: unknown[]) => mockLoadConversation(...args),
+  loadConversation: mocks.loadConversation,
 }));
 
 describe("Conversations Handler", () => {
-  let mockContext: Context;
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  function createMockContext(
-    encodedProjectName: string | undefined,
-    sessionId: string | undefined,
-  ): Context {
-    return {
-      req: {
-        param: vi.fn().mockImplementation((name) => {
-          if (name === "encodedProjectName") return encodedProjectName;
-          if (name === "sessionId") return sessionId;
-          return undefined;
-        }),
-      },
-      json: vi.fn().mockImplementation((data, status) => ({
-        data,
-        status,
-      })),
-    } as any;
-  }
-
   describe("handleConversationRequest", () => {
     it("should return 400 if encoded project name is missing", async () => {
-      mockContext = createMockContext(undefined, "session-123");
+      const mockContext = createMockContext({
+        params: { encodedProjectName: undefined, sessionId: "session-123" },
+      });
 
       const result = await handleConversationRequest(mockContext);
 
@@ -62,7 +47,9 @@ describe("Conversations Handler", () => {
     });
 
     it("should return 400 if session ID is missing", async () => {
-      mockContext = createMockContext("project-name", undefined);
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "project-name", sessionId: undefined },
+      });
 
       const result = await handleConversationRequest(mockContext);
 
@@ -73,8 +60,13 @@ describe("Conversations Handler", () => {
     });
 
     it("should return 400 if encoded project name is invalid", async () => {
-      mockContext = createMockContext("invalid-name", "session-123");
-      mockValidateEncodedProjectName.mockReturnValue(false);
+      const mockContext = createMockContext({
+        params: {
+          encodedProjectName: "invalid-name",
+          sessionId: "session-123",
+        },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(false);
 
       const result = await handleConversationRequest(mockContext);
 
@@ -85,9 +77,14 @@ describe("Conversations Handler", () => {
     });
 
     it("should return 404 if conversation is not found", async () => {
-      mockContext = createMockContext("valid-project", "session-123");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockLoadConversation.mockResolvedValue(null);
+      const mockContext = createMockContext({
+        params: {
+          encodedProjectName: "valid-project",
+          sessionId: "session-123",
+        },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.loadConversation.mockResolvedValue(null);
 
       const result = await handleConversationRequest(mockContext);
 
@@ -98,8 +95,13 @@ describe("Conversations Handler", () => {
     });
 
     it("should return conversation history on success", async () => {
-      mockContext = createMockContext("valid-project", "session-123");
-      mockValidateEncodedProjectName.mockReturnValue(true);
+      const mockContext = createMockContext({
+        params: {
+          encodedProjectName: "valid-project",
+          sessionId: "session-123",
+        },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
 
       const mockConversation = {
         sessionId: "session-123",
@@ -109,7 +111,7 @@ describe("Conversations Handler", () => {
         ],
         createdAt: "2024-01-01T00:00:00Z",
       };
-      mockLoadConversation.mockResolvedValue(mockConversation);
+      mocks.loadConversation.mockResolvedValue(mockConversation);
 
       const result = await handleConversationRequest(mockContext);
 
@@ -120,25 +122,32 @@ describe("Conversations Handler", () => {
     });
 
     it("should call loadConversation with correct parameters", async () => {
-      mockContext = createMockContext("my-project", "my-session");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockLoadConversation.mockResolvedValue({
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "my-project", sessionId: "my-session" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.loadConversation.mockResolvedValue({
         sessionId: "my-session",
         messages: [],
       });
 
       await handleConversationRequest(mockContext);
 
-      expect(mockLoadConversation).toHaveBeenCalledWith(
+      expect(mocks.loadConversation).toHaveBeenCalledWith(
         "my-project",
         "my-session",
       );
     });
 
     it("should return 400 for invalid session ID format error", async () => {
-      mockContext = createMockContext("valid-project", "invalid-session");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockLoadConversation.mockRejectedValue(
+      const mockContext = createMockContext({
+        params: {
+          encodedProjectName: "valid-project",
+          sessionId: "invalid-session",
+        },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.loadConversation.mockRejectedValue(
         new Error("Invalid session ID format"),
       );
 
@@ -154,9 +163,14 @@ describe("Conversations Handler", () => {
     });
 
     it("should return 400 for invalid encoded project name error from loader", async () => {
-      mockContext = createMockContext("valid-project", "session-123");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockLoadConversation.mockRejectedValue(
+      const mockContext = createMockContext({
+        params: {
+          encodedProjectName: "valid-project",
+          sessionId: "session-123",
+        },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.loadConversation.mockRejectedValue(
         new Error("Invalid encoded project name"),
       );
 
@@ -172,48 +186,68 @@ describe("Conversations Handler", () => {
     });
 
     it("should return 500 on unexpected errors", async () => {
-      mockContext = createMockContext("valid-project", "session-123");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockLoadConversation.mockRejectedValue(
+      const mockContext = createMockContext({
+        params: {
+          encodedProjectName: "valid-project",
+          sessionId: "session-123",
+        },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.loadConversation.mockRejectedValue(
         new Error("Database connection failed"),
       );
 
       const result = await handleConversationRequest(mockContext);
+      const mockResult = result as unknown as {
+        data: { error: string; details: string };
+        status: number;
+      };
 
-      expect(result.data).toHaveProperty(
+      expect(mockResult.data).toHaveProperty(
         "error",
         "Failed to fetch conversation details",
       );
-      expect(result.data).toHaveProperty(
+      expect(mockResult.data).toHaveProperty(
         "details",
         "Database connection failed",
       );
-      expect(result.status).toBe(500);
+      expect(mockResult.status).toBe(500);
     });
 
     it("should handle non-Error thrown values", async () => {
-      mockContext = createMockContext("valid-project", "session-123");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockLoadConversation.mockRejectedValue("String error");
+      const mockContext = createMockContext({
+        params: {
+          encodedProjectName: "valid-project",
+          sessionId: "session-123",
+        },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.loadConversation.mockRejectedValue("String error");
 
       const result = await handleConversationRequest(mockContext);
+      const mockResult = result as unknown as {
+        data: { error: string; details: string };
+        status: number;
+      };
 
-      expect(result.data).toHaveProperty(
+      expect(mockResult.data).toHaveProperty(
         "error",
         "Failed to fetch conversation details",
       );
-      expect(result.data).toHaveProperty("details", "String error");
-      expect(result.status).toBe(500);
+      expect(mockResult.data).toHaveProperty("details", "String error");
+      expect(mockResult.status).toBe(500);
     });
 
     it("should validate project name before loading", async () => {
-      mockContext = createMockContext("project", "session");
-      mockValidateEncodedProjectName.mockReturnValue(false);
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "project", sessionId: "session" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(false);
 
       await handleConversationRequest(mockContext);
 
-      expect(mockValidateEncodedProjectName).toHaveBeenCalledWith("project");
-      expect(mockLoadConversation).not.toHaveBeenCalled();
+      expect(mocks.validateEncodedProjectName).toHaveBeenCalledWith("project");
+      expect(mocks.loadConversation).not.toHaveBeenCalled();
     });
   });
 });

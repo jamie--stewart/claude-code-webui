@@ -1,66 +1,57 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Context } from "hono";
 import { handleHistoriesRequest } from "./histories";
+import { createMockContext } from "./test-utils";
 
-// Mock dependencies
+// Hoisted mocks for clean module mocking
+const mocks = vi.hoisted(() => ({
+  logDebug: vi.fn(),
+  logError: vi.fn(),
+  stat: vi.fn(),
+  getHomeDir: vi.fn(),
+  validateEncodedProjectName: vi.fn(),
+  parseAllHistoryFiles: vi.fn(),
+  groupConversations: vi.fn(),
+}));
+
 vi.mock("../utils/logger", () => ({
   logger: {
     history: {
-      debug: vi.fn(),
-      error: vi.fn(),
+      debug: mocks.logDebug,
+      error: mocks.logError,
     },
   },
 }));
 
-const mockStat = vi.fn();
 vi.mock("../utils/fs", () => ({
-  stat: (...args: unknown[]) => mockStat(...args),
+  stat: mocks.stat,
 }));
 
-const mockGetHomeDir = vi.fn();
 vi.mock("../utils/os", () => ({
-  getHomeDir: () => mockGetHomeDir(),
+  getHomeDir: mocks.getHomeDir,
 }));
 
-const mockValidateEncodedProjectName = vi.fn();
 vi.mock("../history/pathUtils", () => ({
-  validateEncodedProjectName: (...args: unknown[]) =>
-    mockValidateEncodedProjectName(...args),
+  validateEncodedProjectName: mocks.validateEncodedProjectName,
 }));
 
-const mockParseAllHistoryFiles = vi.fn();
 vi.mock("../history/parser", () => ({
-  parseAllHistoryFiles: (...args: unknown[]) =>
-    mockParseAllHistoryFiles(...args),
+  parseAllHistoryFiles: mocks.parseAllHistoryFiles,
 }));
 
-const mockGroupConversations = vi.fn();
 vi.mock("../history/grouping", () => ({
-  groupConversations: (...args: unknown[]) => mockGroupConversations(...args),
+  groupConversations: mocks.groupConversations,
 }));
 
 describe("Histories Handler", () => {
-  let mockContext: Context;
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  function createMockContext(encodedProjectName: string | undefined): Context {
-    return {
-      req: {
-        param: vi.fn().mockReturnValue(encodedProjectName),
-      },
-      json: vi.fn().mockImplementation((data, status) => ({
-        data,
-        status,
-      })),
-    } as any;
-  }
-
   describe("handleHistoriesRequest", () => {
     it("should return 400 if encoded project name is missing", async () => {
-      mockContext = createMockContext(undefined);
+      const mockContext = createMockContext({
+        params: { encodedProjectName: undefined },
+      });
 
       const result = await handleHistoriesRequest(mockContext);
 
@@ -71,8 +62,10 @@ describe("Histories Handler", () => {
     });
 
     it("should return 400 if encoded project name is invalid", async () => {
-      mockContext = createMockContext("invalid-name");
-      mockValidateEncodedProjectName.mockReturnValue(false);
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "invalid-name" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(false);
 
       const result = await handleHistoriesRequest(mockContext);
 
@@ -83,9 +76,11 @@ describe("Histories Handler", () => {
     });
 
     it("should return 500 if home directory is not found", async () => {
-      mockContext = createMockContext("valid-encoded-name");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockGetHomeDir.mockReturnValue(null);
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "valid-encoded-name" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.getHomeDir.mockReturnValue(null);
 
       const result = await handleHistoriesRequest(mockContext);
 
@@ -96,10 +91,12 @@ describe("Histories Handler", () => {
     });
 
     it("should return 404 if project directory does not exist", async () => {
-      mockContext = createMockContext("valid-encoded-name");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockStat.mockRejectedValue(new Error("No such file or directory"));
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "valid-encoded-name" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.stat.mockRejectedValue(new Error("No such file or directory"));
 
       const result = await handleHistoriesRequest(mockContext);
 
@@ -110,10 +107,12 @@ describe("Histories Handler", () => {
     });
 
     it("should return 404 if path exists but is not a directory", async () => {
-      mockContext = createMockContext("valid-encoded-name");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockStat.mockResolvedValue({ isDirectory: false });
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "valid-encoded-name" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.stat.mockResolvedValue({ isDirectory: false });
 
       const result = await handleHistoriesRequest(mockContext);
 
@@ -124,16 +123,18 @@ describe("Histories Handler", () => {
     });
 
     it("should return conversation list on success", async () => {
-      mockContext = createMockContext("valid-encoded-name");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockStat.mockResolvedValue({ isDirectory: true });
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "valid-encoded-name" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.stat.mockResolvedValue({ isDirectory: true });
 
       const mockConversationFiles = [
         { sessionId: "session1", messages: [] },
         { sessionId: "session2", messages: [] },
       ];
-      mockParseAllHistoryFiles.mockResolvedValue(mockConversationFiles);
+      mocks.parseAllHistoryFiles.mockResolvedValue(mockConversationFiles);
 
       const mockGroupedConversations = [
         {
@@ -147,7 +148,7 @@ describe("Histories Handler", () => {
           lastMessageTime: "2024-01-02",
         },
       ];
-      mockGroupConversations.mockReturnValue(mockGroupedConversations);
+      mocks.groupConversations.mockReturnValue(mockGroupedConversations);
 
       const result = await handleHistoriesRequest(mockContext);
 
@@ -158,47 +159,59 @@ describe("Histories Handler", () => {
     });
 
     it("should use correct history directory path", async () => {
-      mockContext = createMockContext("my-project-name");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockGetHomeDir.mockReturnValue("/home/testuser");
-      mockStat.mockResolvedValue({ isDirectory: true });
-      mockParseAllHistoryFiles.mockResolvedValue([]);
-      mockGroupConversations.mockReturnValue([]);
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "my-project-name" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.getHomeDir.mockReturnValue("/home/testuser");
+      mocks.stat.mockResolvedValue({ isDirectory: true });
+      mocks.parseAllHistoryFiles.mockResolvedValue([]);
+      mocks.groupConversations.mockReturnValue([]);
 
       await handleHistoriesRequest(mockContext);
 
-      expect(mockStat).toHaveBeenCalledWith(
+      expect(mocks.stat).toHaveBeenCalledWith(
         "/home/testuser/.claude/projects/my-project-name",
       );
-      expect(mockParseAllHistoryFiles).toHaveBeenCalledWith(
+      expect(mocks.parseAllHistoryFiles).toHaveBeenCalledWith(
         "/home/testuser/.claude/projects/my-project-name",
       );
     });
 
     it("should return 500 on unexpected errors", async () => {
-      mockContext = createMockContext("valid-encoded-name");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockStat.mockResolvedValue({ isDirectory: true });
-      mockParseAllHistoryFiles.mockRejectedValue(new Error("Unexpected error"));
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "valid-encoded-name" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.stat.mockResolvedValue({ isDirectory: true });
+      mocks.parseAllHistoryFiles.mockRejectedValue(
+        new Error("Unexpected error"),
+      );
 
       const result = await handleHistoriesRequest(mockContext);
+      const mockResult = result as unknown as {
+        data: { error: string; details: string };
+        status: number;
+      };
 
-      expect(result.data).toHaveProperty(
+      expect(mockResult.data).toHaveProperty(
         "error",
         "Failed to fetch conversation histories",
       );
-      expect(result.data).toHaveProperty("details", "Unexpected error");
-      expect(result.status).toBe(500);
+      expect(mockResult.data).toHaveProperty("details", "Unexpected error");
+      expect(mockResult.status).toBe(500);
     });
 
     it("should return empty conversations array when no history files exist", async () => {
-      mockContext = createMockContext("valid-encoded-name");
-      mockValidateEncodedProjectName.mockReturnValue(true);
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockStat.mockResolvedValue({ isDirectory: true });
-      mockParseAllHistoryFiles.mockResolvedValue([]);
-      mockGroupConversations.mockReturnValue([]);
+      const mockContext = createMockContext({
+        params: { encodedProjectName: "valid-encoded-name" },
+      });
+      mocks.validateEncodedProjectName.mockReturnValue(true);
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.stat.mockResolvedValue({ isDirectory: true });
+      mocks.parseAllHistoryFiles.mockResolvedValue([]);
+      mocks.groupConversations.mockReturnValue([]);
 
       const result = await handleHistoriesRequest(mockContext);
 

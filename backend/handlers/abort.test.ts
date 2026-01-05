@@ -1,19 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Context } from "hono";
 import { handleAbortRequest } from "./abort";
+import { createMockContext } from "./test-utils";
 
-// Mock logger
+// Hoisted mocks for clean module mocking
+const mocks = vi.hoisted(() => ({
+  logDebug: vi.fn(),
+  logError: vi.fn(),
+}));
+
 vi.mock("../utils/logger", () => ({
   logger: {
     api: {
-      debug: vi.fn(),
-      error: vi.fn(),
+      debug: mocks.logDebug,
+      error: mocks.logError,
     },
   },
 }));
 
 describe("Abort Handler", () => {
-  let mockContext: Context;
   let requestAbortControllers: Map<string, AbortController>;
 
   beforeEach(() => {
@@ -23,15 +27,9 @@ describe("Abort Handler", () => {
 
   describe("handleAbortRequest", () => {
     it("should return 400 if request ID is missing", () => {
-      mockContext = {
-        req: {
-          param: vi.fn().mockReturnValue(undefined),
-        },
-        json: vi.fn().mockImplementation((data, status) => ({
-          data,
-          status,
-        })),
-      } as any;
+      const mockContext = createMockContext({
+        params: { requestId: undefined },
+      });
 
       const result = handleAbortRequest(mockContext, requestAbortControllers);
 
@@ -42,15 +40,9 @@ describe("Abort Handler", () => {
     });
 
     it("should return 404 if request ID is not found in controllers map", () => {
-      mockContext = {
-        req: {
-          param: vi.fn().mockReturnValue("non-existent-id"),
-        },
-        json: vi.fn().mockImplementation((data, status) => ({
-          data,
-          status,
-        })),
-      } as any;
+      const mockContext = createMockContext({
+        params: { requestId: "non-existent-id" },
+      });
 
       const result = handleAbortRequest(mockContext, requestAbortControllers);
 
@@ -67,15 +59,9 @@ describe("Abort Handler", () => {
       } as unknown as AbortController;
       requestAbortControllers.set("test-request-id", abortController);
 
-      mockContext = {
-        req: {
-          param: vi.fn().mockReturnValue("test-request-id"),
-        },
-        json: vi.fn().mockImplementation((data, status) => ({
-          data,
-          status,
-        })),
-      } as any;
+      const mockContext = createMockContext({
+        params: { requestId: "test-request-id" },
+      });
 
       const result = handleAbortRequest(mockContext, requestAbortControllers);
 
@@ -83,7 +69,7 @@ describe("Abort Handler", () => {
       expect(requestAbortControllers.has("test-request-id")).toBe(false);
       expect(result).toEqual({
         data: { success: true, message: "Request aborted" },
-        status: undefined,
+        status: 200,
       });
     });
 
@@ -93,12 +79,9 @@ describe("Abort Handler", () => {
 
       expect(requestAbortControllers.size).toBe(1);
 
-      mockContext = {
-        req: {
-          param: vi.fn().mockReturnValue("test-request-id"),
-        },
-        json: vi.fn().mockImplementation((data) => data),
-      } as any;
+      const mockContext = createMockContext({
+        params: { requestId: "test-request-id" },
+      });
 
       handleAbortRequest(mockContext, requestAbortControllers);
 
@@ -116,12 +99,9 @@ describe("Abort Handler", () => {
       requestAbortControllers.set("request-1", abortController1);
       requestAbortControllers.set("request-2", abortController2);
 
-      mockContext = {
-        req: {
-          param: vi.fn().mockReturnValue("request-1"),
-        },
-        json: vi.fn().mockImplementation((data) => data),
-      } as any;
+      const mockContext = createMockContext({
+        params: { requestId: "request-1" },
+      });
 
       handleAbortRequest(mockContext, requestAbortControllers);
 
@@ -129,6 +109,86 @@ describe("Abort Handler", () => {
       expect(abortController2.abort).not.toHaveBeenCalled();
       expect(requestAbortControllers.has("request-1")).toBe(false);
       expect(requestAbortControllers.has("request-2")).toBe(true);
+    });
+
+    it("should handle concurrent abort requests for different IDs", () => {
+      const abortController1 = { abort: vi.fn() } as unknown as AbortController;
+      const abortController2 = { abort: vi.fn() } as unknown as AbortController;
+      const abortController3 = { abort: vi.fn() } as unknown as AbortController;
+
+      requestAbortControllers.set("request-1", abortController1);
+      requestAbortControllers.set("request-2", abortController2);
+      requestAbortControllers.set("request-3", abortController3);
+
+      // Simulate concurrent abort requests
+      const context1 = createMockContext({
+        params: { requestId: "request-1" },
+      });
+      const context2 = createMockContext({
+        params: { requestId: "request-3" },
+      });
+
+      const result1 = handleAbortRequest(context1, requestAbortControllers);
+      const result2 = handleAbortRequest(context2, requestAbortControllers);
+
+      expect(result1).toEqual({
+        data: { success: true, message: "Request aborted" },
+        status: 200,
+      });
+      expect(result2).toEqual({
+        data: { success: true, message: "Request aborted" },
+        status: 200,
+      });
+
+      expect(abortController1.abort).toHaveBeenCalled();
+      expect(abortController2.abort).not.toHaveBeenCalled();
+      expect(abortController3.abort).toHaveBeenCalled();
+
+      expect(requestAbortControllers.size).toBe(1);
+      expect(requestAbortControllers.has("request-2")).toBe(true);
+    });
+
+    it("should handle aborting the same request twice", () => {
+      const abortController = { abort: vi.fn() } as unknown as AbortController;
+      requestAbortControllers.set("request-1", abortController);
+
+      const context1 = createMockContext({
+        params: { requestId: "request-1" },
+      });
+      const context2 = createMockContext({
+        params: { requestId: "request-1" },
+      });
+
+      const result1 = handleAbortRequest(context1, requestAbortControllers);
+      const result2 = handleAbortRequest(context2, requestAbortControllers);
+
+      expect(result1).toEqual({
+        data: { success: true, message: "Request aborted" },
+        status: 200,
+      });
+      expect(result2).toEqual({
+        data: { error: "Request not found or already completed" },
+        status: 404,
+      });
+
+      expect(abortController.abort).toHaveBeenCalledTimes(1);
+    });
+
+    it("should log abort attempts", () => {
+      requestAbortControllers.set("test-id", {
+        abort: vi.fn(),
+      } as unknown as AbortController);
+
+      const mockContext = createMockContext({
+        params: { requestId: "test-id" },
+      });
+
+      handleAbortRequest(mockContext, requestAbortControllers);
+
+      expect(mocks.logDebug).toHaveBeenCalledWith(
+        "Abort attempt for request: test-id",
+      );
+      expect(mocks.logDebug).toHaveBeenCalledWith("Aborted request: test-id");
     });
   });
 });

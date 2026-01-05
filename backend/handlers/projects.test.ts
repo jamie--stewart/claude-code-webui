@@ -1,50 +1,46 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Context } from "hono";
 import { handleProjectsRequest } from "./projects";
+import { createMockContext } from "./test-utils";
 
-// Mock dependencies
+// Hoisted mocks for clean module mocking
+const mocks = vi.hoisted(() => ({
+  logDebug: vi.fn(),
+  logError: vi.fn(),
+  readTextFile: vi.fn(),
+  getHomeDir: vi.fn(),
+  getEncodedProjectName: vi.fn(),
+}));
+
 vi.mock("../utils/logger", () => ({
   logger: {
     api: {
-      debug: vi.fn(),
-      error: vi.fn(),
+      debug: mocks.logDebug,
+      error: mocks.logError,
     },
   },
 }));
 
-const mockReadTextFile = vi.fn();
 vi.mock("../utils/fs", () => ({
-  readTextFile: (...args: unknown[]) => mockReadTextFile(...args),
+  readTextFile: mocks.readTextFile,
 }));
 
-const mockGetHomeDir = vi.fn();
 vi.mock("../utils/os", () => ({
-  getHomeDir: () => mockGetHomeDir(),
+  getHomeDir: mocks.getHomeDir,
 }));
 
-const mockGetEncodedProjectName = vi.fn();
 vi.mock("../history/pathUtils", () => ({
-  getEncodedProjectName: (...args: unknown[]) =>
-    mockGetEncodedProjectName(...args),
+  getEncodedProjectName: mocks.getEncodedProjectName,
 }));
 
 describe("Projects Handler", () => {
-  let mockContext: Context;
-
   beforeEach(() => {
-    mockContext = {
-      json: vi.fn().mockImplementation((data, status) => ({
-        data,
-        status,
-      })),
-    } as any;
-
     vi.clearAllMocks();
   });
 
   describe("handleProjectsRequest", () => {
     it("should return 500 if home directory is not found", async () => {
-      mockGetHomeDir.mockReturnValue(null);
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue(null);
 
       const result = await handleProjectsRequest(mockContext);
 
@@ -55,8 +51,9 @@ describe("Projects Handler", () => {
     });
 
     it("should return empty projects array when config file does not exist", async () => {
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockReadTextFile.mockRejectedValue(
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockRejectedValue(
         new Error("No such file or directory"),
       );
 
@@ -69,8 +66,9 @@ describe("Projects Handler", () => {
     });
 
     it("should return empty projects array when config has no projects object", async () => {
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockReadTextFile.mockResolvedValue("{}");
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockResolvedValue("{}");
 
       const result = await handleProjectsRequest(mockContext);
 
@@ -81,8 +79,9 @@ describe("Projects Handler", () => {
     });
 
     it("should return projects with encoded names when config has projects", async () => {
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockReadTextFile.mockResolvedValue(
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockResolvedValue(
         JSON.stringify({
           projects: {
             "/path/to/project1": {},
@@ -91,7 +90,7 @@ describe("Projects Handler", () => {
         }),
       );
 
-      mockGetEncodedProjectName
+      mocks.getEncodedProjectName
         .mockResolvedValueOnce("encoded-project1")
         .mockResolvedValueOnce("encoded-project2");
 
@@ -109,8 +108,9 @@ describe("Projects Handler", () => {
     });
 
     it("should filter out projects without history directories", async () => {
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockReadTextFile.mockResolvedValue(
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockResolvedValue(
         JSON.stringify({
           projects: {
             "/path/to/project1": {},
@@ -121,7 +121,7 @@ describe("Projects Handler", () => {
       );
 
       // Only project1 and project3 have history (encoded names)
-      mockGetEncodedProjectName
+      mocks.getEncodedProjectName
         .mockResolvedValueOnce("encoded-project1")
         .mockResolvedValueOnce(null) // project2 has no history
         .mockResolvedValueOnce("encoded-project3");
@@ -140,19 +140,21 @@ describe("Projects Handler", () => {
     });
 
     it("should read config from correct path", async () => {
-      mockGetHomeDir.mockReturnValue("/home/testuser");
-      mockReadTextFile.mockResolvedValue(JSON.stringify({ projects: {} }));
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/testuser");
+      mocks.readTextFile.mockResolvedValue(JSON.stringify({ projects: {} }));
 
       await handleProjectsRequest(mockContext);
 
-      expect(mockReadTextFile).toHaveBeenCalledWith(
+      expect(mocks.readTextFile).toHaveBeenCalledWith(
         "/home/testuser/.claude.json",
       );
     });
 
     it("should return 500 on unexpected errors", async () => {
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockReadTextFile.mockRejectedValue(new Error("Unexpected error"));
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockRejectedValue(new Error("Unexpected error"));
 
       const result = await handleProjectsRequest(mockContext);
 
@@ -163,8 +165,9 @@ describe("Projects Handler", () => {
     });
 
     it("should handle invalid JSON in config file", async () => {
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockReadTextFile.mockResolvedValue("invalid json");
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockResolvedValue("invalid json");
 
       const result = await handleProjectsRequest(mockContext);
 
@@ -175,8 +178,9 @@ describe("Projects Handler", () => {
     });
 
     it("should handle projects that is not an object", async () => {
-      mockGetHomeDir.mockReturnValue("/home/user");
-      mockReadTextFile.mockResolvedValue(
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockResolvedValue(
         JSON.stringify({
           projects: "not an object",
         }),
@@ -187,6 +191,49 @@ describe("Projects Handler", () => {
       expect(result).toEqual({
         data: { projects: [] },
         status: undefined,
+      });
+    });
+
+    it("should handle projects that is an array instead of object", async () => {
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockResolvedValue(
+        JSON.stringify({
+          projects: ["/path/to/project"],
+        }),
+      );
+
+      const result = await handleProjectsRequest(mockContext);
+
+      expect(result).toEqual({
+        data: { projects: [] },
+        status: undefined,
+      });
+    });
+
+    it("should handle malformed JSON with extra characters", async () => {
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockResolvedValue('{"projects": {}}extra');
+
+      const result = await handleProjectsRequest(mockContext);
+
+      expect(result).toEqual({
+        data: { error: "Failed to read projects" },
+        status: 500,
+      });
+    });
+
+    it("should handle truncated JSON", async () => {
+      const mockContext = createMockContext();
+      mocks.getHomeDir.mockReturnValue("/home/user");
+      mocks.readTextFile.mockResolvedValue('{"projects": {');
+
+      const result = await handleProjectsRequest(mockContext);
+
+      expect(result).toEqual({
+        data: { error: "Failed to read projects" },
+        status: 500,
       });
     });
   });

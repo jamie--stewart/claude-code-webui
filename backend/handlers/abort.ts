@@ -30,7 +30,7 @@ export function handleAbortRequest(
 
     logger.api.debug(`Aborted request: ${requestId}`);
 
-    return c.json({ success: true, message: "Request aborted" });
+    return c.json({ success: true, message: "Request aborted" }, 200);
   } else {
     return c.json({ error: "Request not found or already completed" }, 404);
   }
