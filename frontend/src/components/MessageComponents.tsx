@@ -81,6 +81,12 @@ interface SystemMessageComponentProps {
 export function SystemMessageComponent({
   message,
 }: SystemMessageComponentProps) {
+  // Check if this is a context overflow message
+  const isContextOverflow =
+    message.type === "system" &&
+    "subtype" in message &&
+    message.subtype === "context_overflow";
+
   // Generate details based on message type and subtype
   const getDetails = () => {
     if (
@@ -96,6 +102,8 @@ export function SystemMessageComponent({
         `Permission Mode: ${message.permissionMode}`,
         `API Key Source: ${message.apiKeySource}`,
       ].join("\n");
+    } else if (isContextOverflow && "message" in message) {
+      return message.message;
     } else if (message.type === "result") {
       const details = [
         `Duration: ${message.duration_ms}ms`,
@@ -115,6 +123,7 @@ export function SystemMessageComponent({
 
   // Get label based on message type
   const getLabel = () => {
+    if (isContextOverflow) return "Context Limit Reached";
     if (message.type === "system") return "System";
     if (message.type === "result") return "Result";
     if (message.type === "error") return "Error";
@@ -122,6 +131,25 @@ export function SystemMessageComponent({
   };
 
   const details = getDetails();
+
+  // Use warning colors for context overflow
+  if (isContextOverflow) {
+    return (
+      <CollapsibleDetails
+        label={getLabel()}
+        details={details}
+        badge="overflow"
+        icon={<span className="bg-amber-400 dark:bg-amber-500">⚠</span>}
+        colorScheme={{
+          header: "text-amber-800 dark:text-amber-300",
+          content: "text-amber-700 dark:text-amber-300",
+          border: "border-amber-200 dark:border-amber-700",
+          bg: "bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800",
+        }}
+        defaultExpanded={true}
+      />
+    );
+  }
 
   return (
     <CollapsibleDetails
