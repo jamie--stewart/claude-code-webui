@@ -1,11 +1,13 @@
 import React, { useRef, useEffect, useState } from "react";
-import { StopIcon } from "@heroicons/react/24/solid";
+import { StopIcon, PhotoIcon } from "@heroicons/react/24/solid";
 import { UI_CONSTANTS, KEYBOARD_SHORTCUTS } from "../../utils/constants";
 import { useEnterBehavior } from "../../hooks/useSettings";
 import { PermissionInputPanel } from "./PermissionInputPanel";
 import { PlanPermissionInputPanel } from "./PlanPermissionInputPanel";
 import { AskUserQuestionPanel } from "./AskUserQuestionPanel";
+import { ImagePreview } from "./ImagePreview";
 import type { PermissionMode, AskUserQuestion } from "../../types";
+import type { PastedImage } from "../../hooks/chat/useImagePaste";
 
 interface PermissionData {
   patterns: string[];
@@ -42,6 +44,8 @@ interface AskUserQuestionData {
   questions: AskUserQuestion[];
   onSubmit: (answers: Record<string, string>) => void;
   onCancel: () => void;
+  /** Number of pending questions in queue (including current one) */
+  pendingCount?: number;
 }
 
 interface ChatInputProps {
@@ -58,6 +62,10 @@ interface ChatInputProps {
   permissionData?: PermissionData;
   planPermissionData?: PlanPermissionData;
   askUserQuestionData?: AskUserQuestionData;
+  // Image paste props
+  images?: PastedImage[];
+  onPaste?: (event: React.ClipboardEvent) => void;
+  onRemoveImage?: (id: string) => void;
 }
 
 export function ChatInput({
@@ -73,6 +81,9 @@ export function ChatInput({
   permissionData,
   planPermissionData,
   askUserQuestionData,
+  images = [],
+  onPaste,
+  onRemoveImage,
 }: ChatInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isComposing, setIsComposing] = useState(false);
@@ -195,6 +206,7 @@ export function ChatInput({
         questions={askUserQuestionData.questions}
         onSubmit={askUserQuestionData.onSubmit}
         onCancel={askUserQuestionData.onCancel}
+        pendingCount={askUserQuestionData.pendingCount}
       />
     );
   }
@@ -228,24 +240,45 @@ export function ChatInput({
     );
   }
 
+  const hasImages = images.length > 0;
+  const canSubmit = (input.trim() || hasImages) && !isLoading;
+
   return (
     <div className="flex-shrink-0">
       <form onSubmit={handleSubmit} className="relative">
-        <textarea
-          ref={inputRef}
-          data-testid="chat-input"
-          value={input}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onCompositionStart={handleCompositionStart}
-          onCompositionEnd={handleCompositionEnd}
-          placeholder={
-            isLoading && currentRequestId ? "Processing..." : "Type message..."
-          }
-          rows={1}
-          className={`w-full px-4 py-3 pr-20 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm shadow-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 resize-none overflow-hidden min-h-[48px] max-h-[${UI_CONSTANTS.TEXTAREA_MAX_HEIGHT}px]`}
-          disabled={isLoading}
-        />
+        {/* Image preview */}
+        {hasImages && onRemoveImage && (
+          <ImagePreview images={images} onRemove={onRemoveImage} />
+        )}
+        <div className="relative">
+          <textarea
+            ref={inputRef}
+            data-testid="chat-input"
+            value={input}
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={onPaste}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
+            placeholder={
+              isLoading && currentRequestId
+                ? "Processing..."
+                : hasImages
+                  ? "Add a message or send with image..."
+                  : "Type message or paste image..."
+            }
+            rows={1}
+            className={`w-full px-4 py-3 pr-20 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 backdrop-blur-sm shadow-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 resize-none overflow-hidden min-h-[48px] max-h-[${UI_CONSTANTS.TEXTAREA_MAX_HEIGHT}px]`}
+            disabled={isLoading}
+          />
+          {/* Image indicator badge */}
+          {hasImages && (
+            <div className="absolute left-3 bottom-3 flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-xs">
+              <PhotoIcon className="w-3 h-3" />
+              <span>{images.length}</span>
+            </div>
+          )}
+        </div>
         <div className="absolute right-2 bottom-3 flex gap-2">
           {isLoading && currentRequestId && (
             <button
@@ -261,7 +294,7 @@ export function ChatInput({
           <button
             type="submit"
             data-testid="chat-submit"
-            disabled={!input.trim() || isLoading}
+            disabled={!canSubmit}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 text-sm"
           >
             {isLoading ? "..." : permissionMode === "plan" ? "Plan" : "Send"}

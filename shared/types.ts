@@ -14,6 +14,17 @@ export interface ToolResultContent {
   is_error?: boolean;
 }
 
+/**
+ * Image content for multimodal messages.
+ * Supports base64-encoded images in common formats.
+ */
+export interface ImageContent {
+  /** MIME type of the image (e.g., "image/png", "image/jpeg") */
+  mediaType: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+  /** Base64-encoded image data (without data URL prefix) */
+  data: string;
+}
+
 export interface ChatRequest {
   message: string;
   sessionId?: string;
@@ -27,6 +38,11 @@ export interface ChatRequest {
    * with tool_result content instead of sending a plain text prompt.
    */
   toolResult?: ToolResultContent;
+  /**
+   * Optional images to include in the message.
+   * When provided, the message will be sent as multimodal content.
+   */
+  images?: ImageContent[];
 }
 
 export interface AbortRequest {
