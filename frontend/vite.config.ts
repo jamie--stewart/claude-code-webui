@@ -42,6 +42,20 @@ export default defineConfig(({ mode }) => {
         "**/scripts/**", // Exclude Playwright demo recording files
         "**/tests/**", // Exclude Playwright validation tests
       ],
+      coverage: {
+        provider: "v8",
+        reporter: ["text", "text-summary", "html", "lcov"],
+        reportsDirectory: "./coverage",
+        exclude: [
+          "node_modules/**",
+          "dist/**",
+          "**/*.d.ts",
+          "**/*.test.{ts,tsx}",
+          "**/test-setup.ts",
+          "scripts/**",
+          "tests/**",
+        ],
+      },
     },
   };
 });
