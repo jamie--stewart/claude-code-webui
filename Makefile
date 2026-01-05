@@ -1,6 +1,6 @@
 # Claude Code Web UI - Development Tasks
 
-.PHONY: format format-check lint typecheck test build dev clean
+.PHONY: format format-check lint typecheck test test-e2e build dev clean
 
 # Formatting
 format: format-frontend format-backend
@@ -36,6 +36,12 @@ test-frontend:
 	cd frontend && npm run test:run
 test-backend:
 	cd backend && npm run test
+
+# E2E Testing (requires dev server running or uses webServer config)
+test-e2e:
+	cd frontend && npm run test:e2e
+test-e2e-ui:
+	cd frontend && npm run test:e2e:ui
 
 # Building
 build: build-frontend copy-dist build-backend
