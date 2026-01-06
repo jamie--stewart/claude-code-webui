@@ -1,3 +1,71 @@
 @import "tailwindcss";
 
 @variant dark (.dark &);
+
+/* Dark mode overrides for highlight.js */
+.dark .hljs {
+  background: transparent !important;
+  color: #c9d1d9;
+}
+
+.dark .hljs-comment,
+.dark .hljs-quote {
+  color: #8b949e;
+  font-style: italic;
+}
+
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-literal,
+.dark .hljs-type {
+  color: #ff7b72;
+}
+
+.dark .hljs-string,
+.dark .hljs-doctag {
+  color: #a5d6ff;
+}
+
+.dark .hljs-number,
+.dark .hljs-symbol,
+.dark .hljs-bullet {
+  color: #79c0ff;
+}
+
+.dark .hljs-function,
+.dark .hljs-title,
+.dark .hljs-section,
+.dark .hljs-title.function_ {
+  color: #d2a8ff;
+}
+
+.dark .hljs-variable,
+.dark .hljs-params,
+.dark .hljs-attr,
+.dark .hljs-attribute {
+  color: #ffa657;
+}
+
+.dark .hljs-built_in,
+.dark .hljs-class .hljs-title {
+  color: #7ee787;
+}
+
+.dark .hljs-meta {
+  color: #a5d6ff;
+}
+
+.dark .hljs-addition {
+  color: #aff5b4;
+  background-color: rgba(63, 185, 80, 0.15);
+}
+
+.dark .hljs-deletion {
+  color: #ffdcd7;
+  background-color: rgba(248, 81, 73, 0.15);
+}
+
+/* Light mode ensure transparent background */
+.hljs {
+  background: transparent !important;
+}

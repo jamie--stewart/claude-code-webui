@@ -168,6 +168,8 @@ export function ChatInput({
         return "⏸ plan mode";
       case "acceptEdits":
         return "⏵⏵ accept edits";
+      case "bypassPermissions":
+        return "⚠️ YOLO mode";
     }
   };
 
@@ -180,12 +182,19 @@ export function ChatInput({
         return "plan mode";
       case "acceptEdits":
         return "accept edits";
+      case "bypassPermissions":
+        return "YOLO mode (bypass permissions)";
     }
   };
 
   // Get next permission mode for cycling
   const getNextPermissionMode = (current: PermissionMode): PermissionMode => {
-    const modes: PermissionMode[] = ["default", "plan", "acceptEdits"];
+    const modes: PermissionMode[] = [
+      "default",
+      "plan",
+      "acceptEdits",
+      "bypassPermissions",
+    ];
     const currentIndex = modes.indexOf(current);
     return modes[(currentIndex + 1) % modes.length];
   };
@@ -267,7 +276,13 @@ export function ChatInput({
             disabled={!input.trim() || isLoading}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 text-sm"
           >
-            {isLoading ? "..." : permissionMode === "plan" ? "Plan" : "Send"}
+            {isLoading
+              ? "..."
+              : permissionMode === "plan"
+                ? "Plan"
+                : permissionMode === "bypassPermissions"
+                  ? "YOLO"
+                  : "Send"}
           </button>
         </div>
       </form>
@@ -278,10 +293,19 @@ export function ChatInput({
         onClick={() =>
           onPermissionModeChange(getNextPermissionMode(permissionMode))
         }
-        className="w-full px-4 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-mono text-left transition-colors cursor-pointer"
+        className={`w-full px-4 py-1 text-xs font-mono text-left transition-colors cursor-pointer ${
+          permissionMode === "bypassPermissions"
+            ? "text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 bg-amber-50 dark:bg-amber-900/20"
+            : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+        }`}
         title={`Current: ${getPermissionModeName(permissionMode)} - Click to cycle (Ctrl+Shift+M)`}
       >
         {getPermissionModeIndicator(permissionMode)}
+        {permissionMode === "bypassPermissions" && (
+          <span className="ml-2 text-amber-500 dark:text-amber-400 text-[10px]">
+            (Claude will execute without asking for permission)
+          </span>
+        )}
         <span className="ml-2 text-slate-400 dark:text-slate-500 text-[10px]">
           - Click to cycle (Ctrl+Shift+M)
         </span>

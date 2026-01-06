@@ -4,6 +4,7 @@ import type {
   SDKMessage,
   SystemMessage,
   AbortMessage,
+  ContextOverflowMessage,
 } from "../../types";
 import {
   isSystemMessage,
@@ -121,6 +122,17 @@ export function useStreamParser() {
             timestamp: Date.now(),
           };
           context.addMessage(abortedMessage);
+          context.setCurrentAssistantMessage(null);
+        } else if (data.type === "context_overflow") {
+          const contextOverflowMessage: ContextOverflowMessage = {
+            type: "system",
+            subtype: "context_overflow",
+            message:
+              data.error ||
+              "The conversation has exceeded the context limit. Please start a new conversation to continue.",
+            timestamp: Date.now(),
+          };
+          context.addMessage(contextOverflowMessage);
           context.setCurrentAssistantMessage(null);
         }
       } catch (parseError) {
