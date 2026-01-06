@@ -277,4 +277,220 @@ describe("usePermissions", () => {
       );
     });
   });
+
+  describe("AskUserQuestion queue handling (race condition fix)", () => {
+    it("should queue multiple AskUserQuestion requests", () => {
+      const { result } = renderHook(() => usePermissions());
+
+      const questions1 = [
+        {
+          question: "First question?",
+          header: "First",
+          multiSelect: false,
+          options: [{ label: "A", description: "Option A" }],
+        },
+      ];
+      const questions2 = [
+        {
+          question: "Second question?",
+          header: "Second",
+          multiSelect: false,
+          options: [{ label: "B", description: "Option B" }],
+        },
+      ];
+
+      // Simulate two requests arriving before user answers
+      act(() => {
+        result.current.showAskUserQuestion(questions1, "toolu_first");
+        result.current.showAskUserQuestion(questions2, "toolu_second");
+      });
+
+      // First request should be shown
+      expect(result.current.askUserQuestionRequest?.toolUseId).toBe(
+        "toolu_first",
+      );
+      expect(result.current.askUserQuestionRequest?.questions[0].header).toBe(
+        "First",
+      );
+      // Queue count should be 2
+      expect(result.current.pendingAskUserQuestionCount).toBe(2);
+    });
+
+    it("should show next question after closing current one", () => {
+      const { result } = renderHook(() => usePermissions());
+
+      const questions1 = [
+        {
+          question: "First question?",
+          header: "First",
+          multiSelect: false,
+          options: [{ label: "A", description: "Option A" }],
+        },
+      ];
+      const questions2 = [
+        {
+          question: "Second question?",
+          header: "Second",
+          multiSelect: false,
+          options: [{ label: "B", description: "Option B" }],
+        },
+      ];
+
+      act(() => {
+        result.current.showAskUserQuestion(questions1, "toolu_first");
+        result.current.showAskUserQuestion(questions2, "toolu_second");
+      });
+
+      // Close first request
+      act(() => {
+        result.current.closeAskUserQuestion();
+      });
+
+      // Second request should now be shown
+      expect(result.current.askUserQuestionRequest?.toolUseId).toBe(
+        "toolu_second",
+      );
+      expect(result.current.askUserQuestionRequest?.questions[0].header).toBe(
+        "Second",
+      );
+      expect(result.current.pendingAskUserQuestionCount).toBe(1);
+    });
+
+    it("should maintain correct toolUseId when processing queue", () => {
+      const { result } = renderHook(() => usePermissions());
+
+      const questions1 = [
+        {
+          question: "Q1?",
+          header: "H1",
+          multiSelect: false,
+          options: [{ label: "A", description: "A" }],
+        },
+      ];
+      const questions2 = [
+        {
+          question: "Q2?",
+          header: "H2",
+          multiSelect: false,
+          options: [{ label: "B", description: "B" }],
+        },
+      ];
+      const questions3 = [
+        {
+          question: "Q3?",
+          header: "H3",
+          multiSelect: false,
+          options: [{ label: "C", description: "C" }],
+        },
+      ];
+
+      act(() => {
+        result.current.showAskUserQuestion(questions1, "toolu_1");
+        result.current.showAskUserQuestion(questions2, "toolu_2");
+        result.current.showAskUserQuestion(questions3, "toolu_3");
+      });
+
+      expect(result.current.askUserQuestionRequest?.toolUseId).toBe("toolu_1");
+      expect(result.current.pendingAskUserQuestionCount).toBe(3);
+
+      act(() => {
+        result.current.closeAskUserQuestion();
+      });
+
+      expect(result.current.askUserQuestionRequest?.toolUseId).toBe("toolu_2");
+      expect(result.current.pendingAskUserQuestionCount).toBe(2);
+
+      act(() => {
+        result.current.closeAskUserQuestion();
+      });
+
+      expect(result.current.askUserQuestionRequest?.toolUseId).toBe("toolu_3");
+      expect(result.current.pendingAskUserQuestionCount).toBe(1);
+
+      act(() => {
+        result.current.closeAskUserQuestion();
+      });
+
+      expect(result.current.askUserQuestionRequest).toBeNull();
+      expect(result.current.pendingAskUserQuestionCount).toBe(0);
+    });
+
+    it("should keep permission mode active while queue has items", () => {
+      const { result } = renderHook(() => usePermissions());
+
+      const questions1 = [
+        {
+          question: "Q1?",
+          header: "H1",
+          multiSelect: false,
+          options: [{ label: "A", description: "A" }],
+        },
+      ];
+      const questions2 = [
+        {
+          question: "Q2?",
+          header: "H2",
+          multiSelect: false,
+          options: [{ label: "B", description: "B" }],
+        },
+      ];
+
+      act(() => {
+        result.current.showAskUserQuestion(questions1, "toolu_1");
+        result.current.showAskUserQuestion(questions2, "toolu_2");
+      });
+
+      expect(result.current.isPermissionMode).toBe(true);
+
+      // Close first - permission mode should still be active
+      act(() => {
+        result.current.closeAskUserQuestion();
+      });
+
+      expect(result.current.isPermissionMode).toBe(true);
+
+      // Close second - now permission mode should be disabled
+      act(() => {
+        result.current.closeAskUserQuestion();
+      });
+
+      expect(result.current.isPermissionMode).toBe(false);
+    });
+
+    it("should handle adding to queue while processing", () => {
+      const { result } = renderHook(() => usePermissions());
+
+      const questions1 = [
+        {
+          question: "Q1?",
+          header: "H1",
+          multiSelect: false,
+          options: [{ label: "A", description: "A" }],
+        },
+      ];
+      const questions2 = [
+        {
+          question: "Q2?",
+          header: "H2",
+          multiSelect: false,
+          options: [{ label: "B", description: "B" }],
+        },
+      ];
+
+      act(() => {
+        result.current.showAskUserQuestion(questions1, "toolu_1");
+      });
+
+      expect(result.current.pendingAskUserQuestionCount).toBe(1);
+
+      // New request arrives while user is answering first
+      act(() => {
+        result.current.showAskUserQuestion(questions2, "toolu_2");
+      });
+
+      // First should still be active, but queue now has 2
+      expect(result.current.askUserQuestionRequest?.toolUseId).toBe("toolu_1");
+      expect(result.current.pendingAskUserQuestionCount).toBe(2);
+    });
+  });
 });

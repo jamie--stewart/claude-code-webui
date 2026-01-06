@@ -128,6 +128,7 @@ export function ChatPage() {
     askUserQuestionRequest,
     showAskUserQuestion,
     closeAskUserQuestion,
+    pendingAskUserQuestionCount,
   } = usePermissions({
     onPermissionModeChange: setPermissionMode,
   });
@@ -444,6 +445,7 @@ export function ChatPage() {
         questions: askUserQuestionRequest.questions,
         onSubmit: handleAskUserQuestionSubmit,
         onCancel: handleAskUserQuestionCancel,
+        pendingCount: pendingAskUserQuestionCount,
       }
     : undefined;
 
