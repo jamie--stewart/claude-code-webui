@@ -188,16 +188,42 @@ async function* executeClaudeCommand(
 
     yield { type: "done" };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Check for context overflow error
+    // Multiple patterns to catch various context-related errors from the SDK
+    const contextOverflowPatterns = [
+      /exceed\s*context\s*limit/i, // "input length and `max_tokens` exceed context limit: X + Y > Z"
+      /context\s*window\s*exceeded/i, // Alternative phrasing
+      /context\s*length.*exceeded/i, // "context length exceeded" or "context length has been exceeded"
+      /max(imum)?\s*context\s*(length|size|limit)/i, // "maximum context length exceeded"
+      /token\s*limit\s*exceeded/i, // "token limit exceeded"
+      /input.*too\s*long/i, // "input is too long"
+      /conversation.*too\s*long/i, // "conversation is too long"
+    ];
+
+    const isContextOverflow = contextOverflowPatterns.some((pattern) =>
+      pattern.test(errorMessage),
+    );
+
+    if (isContextOverflow) {
+      logger.chat.warn("Context overflow detected: {error}", { error });
+      yield {
+        type: "context_overflow",
+        error:
+          "The conversation has exceeded the context limit. Please start a new conversation to continue.",
+      };
+    }
     // Check if error is due to abort
     // TODO: Re-enable when AbortError is properly exported from Claude SDK
-    // if (error instanceof AbortError) {
+    // else if (error instanceof AbortError) {
     //   yield { type: "aborted" };
-    // } else {
-    {
+    // }
+    else {
       logger.chat.error("Claude Code execution failed: {error}", { error });
       yield {
         type: "error",
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
       };
     }
   } finally {

@@ -525,6 +525,19 @@ export function ChatPage() {
     }
   }, [navigate, workingDirectory]);
 
+  // Handler to start a new conversation (clear session and messages)
+  const handleStartNewConversation = useCallback(() => {
+    if (workingDirectory) {
+      // Navigate to project chat without sessionId to start fresh
+      navigate(`/projects${workingDirectory}`);
+      // Force a page reload to ensure clean state
+      window.location.reload();
+    } else {
+      // If no working directory, just reload the page
+      window.location.reload();
+    }
+  }, [navigate, workingDirectory]);
+
   // Handle global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -670,7 +683,11 @@ export function ChatPage() {
         ) : (
           <>
             {/* Chat Messages */}
-            <ChatMessages messages={messages} isLoading={isLoading} />
+            <ChatMessages
+              messages={messages}
+              isLoading={isLoading}
+              onStartNewConversation={handleStartNewConversation}
+            />
 
             {/* Input */}
             <ChatInput

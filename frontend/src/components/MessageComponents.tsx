@@ -13,6 +13,8 @@ import type {
 import { TimestampComponent } from "./TimestampComponent";
 import { MessageContainer } from "./messages/MessageContainer";
 import { CollapsibleDetails } from "./messages/CollapsibleDetails";
+import { CodeBlock } from "./messages/CodeBlock";
+import { CopyButton } from "./messages/CopyButton";
 import { MESSAGE_CONSTANTS } from "../utils/constants";
 import {
   createEditResult,
@@ -21,6 +23,10 @@ import {
   isEditToolUseResult,
   isBashToolUseResult,
 } from "../utils/contentUtils";
+import {
+  parseContentWithCodeBlocks,
+  hasCodeBlocks,
+} from "../utils/codeHighlighting";
 
 // ANSI escape sequence regex for cleaning hooks messages
 const ANSI_REGEX = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
@@ -47,40 +53,87 @@ export function ChatMessageComponent({ message }: ChatMessageComponentProps) {
     ? "bg-blue-600 text-white"
     : "bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100";
 
+  // Check if assistant message contains code blocks
+  const shouldParseCodeBlocks = !isUser && hasCodeBlocks(message.content);
+  const segments = shouldParseCodeBlocks
+    ? parseContentWithCodeBlocks(message.content)
+    : null;
+
   return (
     <MessageContainer
       alignment={isUser ? "right" : "left"}
       colorScheme={colorScheme}
     >
-      <div className="mb-2 flex items-center justify-between gap-4">
-        <div
-          className={`text-xs font-semibold opacity-90 ${
-            isUser ? "text-blue-100" : "text-slate-600 dark:text-slate-400"
-          }`}
-        >
-          {isUser ? "User" : "Claude"}
+      <div className="group/message">
+        <div className="mb-2 flex items-center justify-between gap-4">
+          <div
+            className={`text-xs font-semibold opacity-90 ${
+              isUser ? "text-blue-100" : "text-slate-600 dark:text-slate-400"
+            }`}
+          >
+            {isUser ? "User" : "Claude"}
+          </div>
+          <div className="flex items-center gap-2">
+            <CopyButton
+              content={message.content}
+              className={`opacity-0 group-hover/message:opacity-100 transition-opacity ${
+                isUser
+                  ? "text-blue-200 hover:text-white hover:bg-blue-500/50"
+                  : ""
+              }`}
+            />
+            <TimestampComponent
+              timestamp={message.timestamp}
+              className={`text-xs opacity-70 ${
+                isUser ? "text-blue-200" : "text-slate-500 dark:text-slate-500"
+              }`}
+            />
+          </div>
         </div>
-        <TimestampComponent
-          timestamp={message.timestamp}
-          className={`text-xs opacity-70 ${
-            isUser ? "text-blue-200" : "text-slate-500 dark:text-slate-500"
-          }`}
-        />
+        {segments ? (
+          <div className="text-sm leading-relaxed">
+            {segments.map((segment, index) =>
+              segment.type === "code" ? (
+                <CodeBlock
+                  key={index}
+                  code={segment.code}
+                  language={segment.language}
+                />
+              ) : (
+                <pre
+                  key={index}
+                  className="whitespace-pre-wrap font-mono my-2 first:mt-0 last:mb-0"
+                >
+                  {segment.content}
+                </pre>
+              ),
+            )}
+          </div>
+        ) : (
+          <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+            {message.content}
+          </pre>
+        )}
       </div>
-      <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
-        {message.content}
-      </pre>
     </MessageContainer>
   );
 }
 
 interface SystemMessageComponentProps {
   message: SystemMessage;
+  onStartNewConversation?: () => void;
 }
 
 export function SystemMessageComponent({
   message,
+  onStartNewConversation,
 }: SystemMessageComponentProps) {
+  // Check if this is a context overflow message
+  const isContextOverflow =
+    message.type === "system" &&
+    "subtype" in message &&
+    message.subtype === "context_overflow";
+
   // Generate details based on message type and subtype
   const getDetails = () => {
     if (
@@ -96,6 +149,8 @@ export function SystemMessageComponent({
         `Permission Mode: ${message.permissionMode}`,
         `API Key Source: ${message.apiKeySource}`,
       ].join("\n");
+    } else if (isContextOverflow && "message" in message) {
+      return message.message;
     } else if (message.type === "result") {
       const details = [
         `Duration: ${message.duration_ms}ms`,
@@ -115,6 +170,7 @@ export function SystemMessageComponent({
 
   // Get label based on message type
   const getLabel = () => {
+    if (isContextOverflow) return "Context Limit Reached";
     if (message.type === "system") return "System";
     if (message.type === "result") return "Result";
     if (message.type === "error") return "Error";
@@ -122,6 +178,35 @@ export function SystemMessageComponent({
   };
 
   const details = getDetails();
+
+  // Use warning colors for context overflow
+  if (isContextOverflow) {
+    return (
+      <div className="space-y-3">
+        <CollapsibleDetails
+          label={getLabel()}
+          details={details}
+          badge="overflow"
+          icon={<span className="bg-amber-400 dark:bg-amber-500">⚠</span>}
+          colorScheme={{
+            header: "text-amber-800 dark:text-amber-300",
+            content: "text-amber-700 dark:text-amber-300",
+            border: "border-amber-200 dark:border-amber-700",
+            bg: "bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800",
+          }}
+          defaultExpanded={true}
+        />
+        {onStartNewConversation && (
+          <button
+            onClick={onStartNewConversation}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+          >
+            Start New Conversation
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <CollapsibleDetails

@@ -26,9 +26,14 @@ import {
 interface ChatMessagesProps {
   messages: AllMessage[];
   isLoading: boolean;
+  onStartNewConversation?: () => void;
 }
 
-export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
+export function ChatMessages({
+  messages,
+  isLoading,
+  onStartNewConversation,
+}: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +66,13 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
     const key = `${message.timestamp}-${index}`;
 
     if (isSystemMessage(message)) {
-      return <SystemMessageComponent key={key} message={message} />;
+      return (
+        <SystemMessageComponent
+          key={key}
+          message={message}
+          onStartNewConversation={onStartNewConversation}
+        />
+      );
     } else if (isToolMessage(message)) {
       return <ToolMessageComponent key={key} message={message} />;
     } else if (isToolResultMessage(message)) {

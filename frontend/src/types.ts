@@ -30,6 +30,14 @@ export type AbortMessage = {
   timestamp: number;
 };
 
+// Context overflow message for when conversation exceeds context limits
+export type ContextOverflowMessage = {
+  type: "system";
+  subtype: "context_overflow";
+  message: string;
+  timestamp: number;
+};
+
 // Hooks message for hook execution notifications
 export type HooksMessage = {
   type: "system";
@@ -44,6 +52,7 @@ export type SystemMessage = (
   | SDKResultMessage
   | ErrorMessage
   | AbortMessage
+  | ContextOverflowMessage
   | HooksMessage
 ) & {
   timestamp: number;
@@ -198,8 +207,12 @@ export function isAskUserQuestionMessage(
   return message.type === "ask_user_question";
 }
 
-// Permission mode types (UI-focused subset of SDK PermissionMode)
-export type PermissionMode = "default" | "plan" | "acceptEdits";
+// Permission mode types (includes bypassPermissions for YOLO mode)
+export type PermissionMode =
+  | "default"
+  | "plan"
+  | "acceptEdits"
+  | "bypassPermissions";
 
 // SDK type integration utilities
 export function toSDKPermissionMode(uiMode: PermissionMode): SDKPermissionMode {
@@ -209,8 +222,7 @@ export function toSDKPermissionMode(uiMode: PermissionMode): SDKPermissionMode {
 export function fromSDKPermissionMode(
   sdkMode: SDKPermissionMode,
 ): PermissionMode {
-  // Filter out bypassPermissions for UI
-  return sdkMode === "bypassPermissions" ? "default" : sdkMode;
+  return sdkMode;
 }
 
 // Chat state extensions for permission mode

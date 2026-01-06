@@ -1,5 +1,5 @@
 export interface StreamResponse {
-  type: "claude_json" | "error" | "done" | "aborted";
+  type: "claude_json" | "error" | "done" | "aborted" | "context_overflow";
   data?: unknown; // SDKMessage object for claude_json type
   error?: string;
 }
@@ -31,7 +31,7 @@ export interface ChatRequest {
   requestId: string;
   allowedTools?: string[];
   workingDirectory?: string;
-  permissionMode?: "default" | "plan" | "acceptEdits";
+  permissionMode?: "default" | "plan" | "acceptEdits" | "bypassPermissions";
   /**
    * Optional tool result for responding to tool_use requests.
    * When provided, the backend will construct a proper SDKUserMessage
