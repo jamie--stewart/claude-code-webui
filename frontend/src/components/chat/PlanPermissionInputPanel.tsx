@@ -102,7 +102,10 @@ export function PlanPermissionInputPanel({
   ]);
 
   return (
-    <div className="flex-shrink-0 px-4 py-4 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl backdrop-blur-sm shadow-sm">
+    <div
+      className="flex-shrink-0 px-4 py-4 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl backdrop-blur-sm shadow-sm"
+      data-testid="plan-permission-panel"
+    >
       {/* Content */}
       <div className="mb-4">
         <p className="text-sm text-slate-500 dark:text-slate-400">
