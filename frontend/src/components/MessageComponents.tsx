@@ -13,6 +13,7 @@ import type {
 import { TimestampComponent } from "./TimestampComponent";
 import { MessageContainer } from "./messages/MessageContainer";
 import { CollapsibleDetails } from "./messages/CollapsibleDetails";
+import { CopyButton } from "./messages/CopyButton";
 import { MESSAGE_CONSTANTS } from "../utils/constants";
 import {
   createEditResult,
@@ -52,24 +53,36 @@ export function ChatMessageComponent({ message }: ChatMessageComponentProps) {
       alignment={isUser ? "right" : "left"}
       colorScheme={colorScheme}
     >
-      <div className="mb-2 flex items-center justify-between gap-4">
-        <div
-          className={`text-xs font-semibold opacity-90 ${
-            isUser ? "text-blue-100" : "text-slate-600 dark:text-slate-400"
-          }`}
-        >
-          {isUser ? "User" : "Claude"}
+      <div className="group/message">
+        <div className="mb-2 flex items-center justify-between gap-4">
+          <div
+            className={`text-xs font-semibold opacity-90 ${
+              isUser ? "text-blue-100" : "text-slate-600 dark:text-slate-400"
+            }`}
+          >
+            {isUser ? "User" : "Claude"}
+          </div>
+          <div className="flex items-center gap-2">
+            <CopyButton
+              content={message.content}
+              className={`opacity-0 group-hover/message:opacity-100 transition-opacity ${
+                isUser
+                  ? "text-blue-200 hover:text-white hover:bg-blue-500/50"
+                  : ""
+              }`}
+            />
+            <TimestampComponent
+              timestamp={message.timestamp}
+              className={`text-xs opacity-70 ${
+                isUser ? "text-blue-200" : "text-slate-500 dark:text-slate-500"
+              }`}
+            />
+          </div>
         </div>
-        <TimestampComponent
-          timestamp={message.timestamp}
-          className={`text-xs opacity-70 ${
-            isUser ? "text-blue-200" : "text-slate-500 dark:text-slate-500"
-          }`}
-        />
+        <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+          {message.content}
+        </pre>
       </div>
-      <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
-        {message.content}
-      </pre>
     </MessageContainer>
   );
 }
