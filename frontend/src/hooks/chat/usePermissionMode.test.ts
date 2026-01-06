@@ -10,6 +10,7 @@ describe("usePermissionMode", () => {
     expect(result.current.isDefaultMode).toBe(true);
     expect(result.current.isPlanMode).toBe(false);
     expect(result.current.isAcceptEditsMode).toBe(false);
+    expect(result.current.isBypassPermissionsMode).toBe(false);
   });
 
   it("should update permission mode correctly", () => {
@@ -63,5 +64,19 @@ describe("usePermissionMode", () => {
 
     expect(result2.current.permissionMode).toBe("default");
     expect(result2.current.isDefaultMode).toBe(true);
+  });
+
+  it("should handle bypassPermissions (YOLO) mode correctly", () => {
+    const { result } = renderHook(() => usePermissionMode());
+
+    act(() => {
+      result.current.setPermissionMode("bypassPermissions");
+    });
+
+    expect(result.current.permissionMode).toBe("bypassPermissions");
+    expect(result.current.isBypassPermissionsMode).toBe(true);
+    expect(result.current.isDefaultMode).toBe(false);
+    expect(result.current.isPlanMode).toBe(false);
+    expect(result.current.isAcceptEditsMode).toBe(false);
   });
 });

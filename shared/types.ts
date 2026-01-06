@@ -20,7 +20,7 @@ export interface ChatRequest {
   requestId: string;
   allowedTools?: string[];
   workingDirectory?: string;
-  permissionMode?: "default" | "plan" | "acceptEdits";
+  permissionMode?: "default" | "plan" | "acceptEdits" | "bypassPermissions";
   /**
    * Optional tool result for responding to tool_use requests.
    * When provided, the backend will construct a proper SDKUserMessage
