@@ -76,10 +76,12 @@ export function ChatMessageComponent({ message }: ChatMessageComponentProps) {
 
 interface SystemMessageComponentProps {
   message: SystemMessage;
+  onStartNewConversation?: () => void;
 }
 
 export function SystemMessageComponent({
   message,
+  onStartNewConversation,
 }: SystemMessageComponentProps) {
   // Check if this is a context overflow message
   const isContextOverflow =
@@ -135,19 +137,29 @@ export function SystemMessageComponent({
   // Use warning colors for context overflow
   if (isContextOverflow) {
     return (
-      <CollapsibleDetails
-        label={getLabel()}
-        details={details}
-        badge="overflow"
-        icon={<span className="bg-amber-400 dark:bg-amber-500">⚠</span>}
-        colorScheme={{
-          header: "text-amber-800 dark:text-amber-300",
-          content: "text-amber-700 dark:text-amber-300",
-          border: "border-amber-200 dark:border-amber-700",
-          bg: "bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800",
-        }}
-        defaultExpanded={true}
-      />
+      <div className="space-y-3">
+        <CollapsibleDetails
+          label={getLabel()}
+          details={details}
+          badge="overflow"
+          icon={<span className="bg-amber-400 dark:bg-amber-500">⚠</span>}
+          colorScheme={{
+            header: "text-amber-800 dark:text-amber-300",
+            content: "text-amber-700 dark:text-amber-300",
+            border: "border-amber-200 dark:border-amber-700",
+            bg: "bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800",
+          }}
+          defaultExpanded={true}
+        />
+        {onStartNewConversation && (
+          <button
+            onClick={onStartNewConversation}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+          >
+            Start New Conversation
+          </button>
+        )}
+      </div>
     );
   }
 
