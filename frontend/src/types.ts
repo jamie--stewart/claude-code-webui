@@ -260,6 +260,7 @@ export type {
   ProjectsResponse,
   ProjectInfo,
   ToolResultContent,
+  ImageContent,
 } from "../../shared/types";
 
 // Re-export SDK types

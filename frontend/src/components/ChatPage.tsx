@@ -8,12 +8,14 @@ import type {
   PermissionMode,
   AskUserQuestion,
   ToolResultContent,
+  ImageContent,
 } from "../types";
 import { useClaudeStreaming } from "../hooks/useClaudeStreaming";
 import { useChatState } from "../hooks/chat/useChatState";
 import { usePermissions } from "../hooks/chat/usePermissions";
 import { usePermissionMode } from "../hooks/chat/usePermissionMode";
 import { useAbortController } from "../hooks/chat/useAbortController";
+import { useImagePaste } from "../hooks/chat/useImagePaste";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
 import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
@@ -133,6 +135,16 @@ export function ChatPage() {
     onPermissionModeChange: setPermissionMode,
   });
 
+  // Image paste state management
+  const {
+    images,
+    handlePaste,
+    removeImage,
+    clearImages,
+    getImagesForRequest,
+    hasImages,
+  } = useImagePaste();
+
   const handlePermissionError = useCallback(
     (toolName: string, patterns: string[], toolUseId: string) => {
       // Check if this is an ExitPlanMode permission error
@@ -160,24 +172,35 @@ export function ChatPage() {
       hideUserMessage = false,
       overridePermissionMode?: PermissionMode,
       toolResult?: ToolResultContent,
+      messageImages?: ImageContent[],
     ) => {
       const content = messageContent || input.trim();
-      if (!content || isLoading) return;
+      const imagesToSend = messageImages || getImagesForRequest();
+
+      // Need either text content or images to send
+      if ((!content && imagesToSend.length === 0) || isLoading) return;
 
       const requestId = generateRequestId();
 
       // Only add user message to chat if not hidden
       if (!hideUserMessage) {
+        const imageIndicator =
+          imagesToSend.length > 0
+            ? ` [${imagesToSend.length} image${imagesToSend.length > 1 ? "s" : ""}]`
+            : "";
         const userMessage: ChatMessage = {
           type: "chat",
           role: "user",
-          content: content,
+          content: content + imageIndicator,
           timestamp: Date.now(),
         };
         addMessage(userMessage);
       }
 
-      if (!messageContent) clearInput();
+      if (!messageContent) {
+        clearInput();
+        clearImages(); // Clear images after sending
+      }
       startRequest();
 
       try {
@@ -192,6 +215,7 @@ export function ChatPage() {
             ...(workingDirectory ? { workingDirectory } : {}),
             permissionMode: overridePermissionMode || permissionMode,
             ...(toolResult ? { toolResult } : {}),
+            ...(imagesToSend.length > 0 ? { images: imagesToSend } : {}),
           } as ChatRequest),
         });
 
@@ -264,6 +288,8 @@ export function ChatPage() {
       permissionMode,
       generateRequestId,
       clearInput,
+      clearImages,
+      getImagesForRequest,
       startRequest,
       addMessage,
       updateLastMessage,
@@ -677,6 +703,9 @@ export function ChatPage() {
               permissionData={permissionData}
               planPermissionData={planPermissionData}
               askUserQuestionData={askUserQuestionData}
+              images={images}
+              onPaste={handlePaste}
+              onRemoveImage={removeImage}
             />
           </>
         )}

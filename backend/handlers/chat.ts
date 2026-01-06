@@ -8,6 +8,7 @@ import type {
   ChatRequest,
   StreamResponse,
   ToolResultContent,
+  ImageContent,
 } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
 import { randomUUID } from "node:crypto";
@@ -45,6 +46,51 @@ function createToolResultMessage(
 }
 
 /**
+ * Creates an SDKUserMessage with multimodal content (text + images).
+ * This is used when the user sends images along with their message.
+ *
+ * @param text - The text message
+ * @param images - Array of image content with base64 data
+ * @param sessionId - The current session ID
+ * @returns SDKUserMessage with multimodal content
+ */
+function createMultimodalMessage(
+  text: string,
+  images: ImageContent[],
+  sessionId: string,
+): SDKUserMessage {
+  // Build content array with images first, then text
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const content: any[] = images.map((img) => ({
+    type: "image",
+    source: {
+      type: "base64",
+      media_type: img.mediaType,
+      data: img.data,
+    },
+  }));
+
+  // Add text content if provided
+  if (text.trim()) {
+    content.push({
+      type: "text",
+      text: text,
+    });
+  }
+
+  return {
+    type: "user",
+    message: {
+      role: "user",
+      content,
+    },
+    parent_tool_use_id: null,
+    session_id: sessionId,
+    uuid: randomUUID(),
+  };
+}
+
+/**
  * Creates an AsyncIterable that yields a single SDKUserMessage.
  * Used for streaming input to the SDK query function.
  */
@@ -65,6 +111,7 @@ async function* createSingleMessageIterable(
  * @param workingDirectory - Optional working directory for Claude execution
  * @param permissionMode - Optional permission mode for Claude execution
  * @param toolResult - Optional tool result for responding to tool_use requests
+ * @param images - Optional images for multimodal messages
  * @returns AsyncGenerator yielding StreamResponse objects
  */
 async function* executeClaudeCommand(
@@ -77,6 +124,7 @@ async function* executeClaudeCommand(
   workingDirectory?: string,
   permissionMode?: PermissionMode,
   toolResult?: ToolResultContent,
+  images?: ImageContent[],
 ): AsyncGenerator<StreamResponse> {
   let abortController: AbortController;
 
@@ -85,7 +133,7 @@ async function* executeClaudeCommand(
     abortController = new AbortController();
     requestAbortControllers.set(requestId, abortController);
 
-    // Determine the prompt format based on whether we have a toolResult
+    // Determine the prompt format based on input type
     let prompt: string | AsyncIterable<SDKUserMessage>;
 
     if (toolResult && sessionId) {
@@ -94,6 +142,17 @@ async function* executeClaudeCommand(
       prompt = createSingleMessageIterable(toolResultMessage);
       logger.chat.debug("Sending tool_result response: {toolResult}", {
         toolResult,
+      });
+    } else if (images && images.length > 0 && sessionId) {
+      // Use multimodal format for messages with images
+      const multimodalMessage = createMultimodalMessage(
+        message,
+        images,
+        sessionId,
+      );
+      prompt = createSingleMessageIterable(multimodalMessage);
+      logger.chat.debug("Sending multimodal message with {count} images", {
+        count: images.length,
       });
     } else {
       // Use plain text prompt for regular messages
@@ -206,6 +265,7 @@ export async function handleChatRequest(
           chatRequest.workingDirectory,
           chatRequest.permissionMode,
           chatRequest.toolResult,
+          chatRequest.images,
         )) {
           const data = JSON.stringify(chunk) + "\n";
           controller.enqueue(new TextEncoder().encode(data));
