@@ -13,6 +13,18 @@ export interface PastedImage {
   fileName?: string;
 }
 
+export interface ImageValidationError {
+  fileName?: string;
+  reason: "size" | "dimensions" | "type" | "read_error";
+  message: string;
+}
+
+/** Maximum image file size in bytes (5MB) */
+export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+/** Maximum image dimension in pixels (4096px - typical API limit) */
+export const MAX_IMAGE_DIMENSION = 4096;
+
 /** Supported image MIME types */
 const SUPPORTED_TYPES = [
   "image/png",
@@ -34,36 +46,123 @@ function generateImageId(): string {
   return `img-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
+export type FileToImageResult =
+  | { success: true; image: PastedImage }
+  | { success: false; error: ImageValidationError };
+
 /**
- * Converts a File to a PastedImage object
+ * Checks image dimensions by loading it into an Image element
  */
-async function fileToImage(file: File): Promise<PastedImage | null> {
+function checkImageDimensions(
+  dataUrl: string,
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.width, height: img.height });
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = dataUrl;
+  });
+}
+
+/**
+ * Converts a File to a PastedImage object with validation
+ */
+export async function fileToImage(file: File): Promise<FileToImageResult> {
+  // Check file type
   if (!isSupportedImageType(file.type)) {
-    return null;
+    return {
+      success: false,
+      error: {
+        fileName: file.name,
+        reason: "type",
+        message: `Unsupported image type: ${file.type}. Supported types: PNG, JPEG, GIF, WebP`,
+      },
+    };
+  }
+
+  // Check file size
+  if (file.size > MAX_IMAGE_SIZE) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    return {
+      success: false,
+      error: {
+        fileName: file.name,
+        reason: "size",
+        message: `Image too large (${sizeMB}MB). Maximum size is 5MB`,
+      },
+    };
   }
 
   return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const dataUrl = reader.result as string;
+
+      // Check image dimensions
+      try {
+        const { width, height } = await checkImageDimensions(dataUrl);
+        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+          resolve({
+            success: false,
+            error: {
+              fileName: file.name,
+              reason: "dimensions",
+              message: `Image dimensions too large (${width}x${height}). Maximum dimension is ${MAX_IMAGE_DIMENSION}px`,
+            },
+          });
+          return;
+        }
+      } catch {
+        resolve({
+          success: false,
+          error: {
+            fileName: file.name,
+            reason: "read_error",
+            message: "Failed to read image dimensions",
+          },
+        });
+        return;
+      }
+
       // Extract base64 data (remove the "data:image/xxx;base64," prefix)
       const base64Data = dataUrl.split(",")[1];
 
       resolve({
-        id: generateImageId(),
-        mediaType: file.type as SupportedMediaType,
-        data: base64Data,
-        previewUrl: dataUrl,
-        fileName: file.name || undefined,
+        success: true,
+        image: {
+          id: generateImageId(),
+          mediaType: file.type as SupportedMediaType,
+          data: base64Data,
+          previewUrl: dataUrl,
+          fileName: file.name || undefined,
+        },
       });
     };
-    reader.onerror = () => resolve(null);
+    reader.onerror = () =>
+      resolve({
+        success: false,
+        error: {
+          fileName: file.name,
+          reason: "read_error",
+          message: "Failed to read image file",
+        },
+      });
     reader.readAsDataURL(file);
   });
 }
 
 export function useImagePaste() {
   const [images, setImages] = useState<PastedImage[]>([]);
+  const [validationErrors, setValidationErrors] = useState<
+    ImageValidationError[]
+  >([]);
+
+  /**
+   * Clears validation errors
+   */
+  const clearValidationErrors = useCallback(() => {
+    setValidationErrors([]);
+  }, []);
 
   /**
    * Handles paste event from clipboard
@@ -89,15 +188,22 @@ export function useImagePaste() {
       event.preventDefault();
 
       const newImages: PastedImage[] = [];
+      const newErrors: ImageValidationError[] = [];
+
       for (const file of imageFiles) {
-        const image = await fileToImage(file);
-        if (image) {
-          newImages.push(image);
+        const result = await fileToImage(file);
+        if (result.success) {
+          newImages.push(result.image);
+        } else {
+          newErrors.push(result.error);
         }
       }
 
       if (newImages.length > 0) {
         setImages((prev) => [...prev, ...newImages]);
+      }
+      if (newErrors.length > 0) {
+        setValidationErrors((prev) => [...prev, ...newErrors]);
       }
     },
     [],
@@ -111,15 +217,22 @@ export function useImagePaste() {
       if (!files) return;
 
       const newImages: PastedImage[] = [];
+      const newErrors: ImageValidationError[] = [];
+
       for (const file of files) {
-        const image = await fileToImage(file);
-        if (image) {
-          newImages.push(image);
+        const result = await fileToImage(file);
+        if (result.success) {
+          newImages.push(result.image);
+        } else {
+          newErrors.push(result.error);
         }
       }
 
       if (newImages.length > 0) {
         setImages((prev) => [...prev, ...newImages]);
+      }
+      if (newErrors.length > 0) {
+        setValidationErrors((prev) => [...prev, ...newErrors]);
       }
     },
     [],
@@ -154,5 +267,8 @@ export function useImagePaste() {
     clearImages,
     getImagesForRequest,
     hasImages: images.length > 0,
+    validationErrors,
+    clearValidationErrors,
+    hasValidationErrors: validationErrors.length > 0,
   };
 }
