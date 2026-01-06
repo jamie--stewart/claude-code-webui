@@ -356,6 +356,48 @@ describe("useStreamParser", () => {
       });
       expect(mockContext.setCurrentAssistantMessage).toHaveBeenCalledWith(null);
     });
+
+    it("should handle context_overflow stream responses", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      result.current.processStreamLine(
+        JSON.stringify({
+          type: "context_overflow",
+          error:
+            "The conversation has exceeded the context limit. Please start a new conversation to continue.",
+        }),
+        mockContext,
+      );
+
+      expect(mockContext.addMessage).toHaveBeenCalledWith({
+        type: "system",
+        subtype: "context_overflow",
+        message:
+          "The conversation has exceeded the context limit. Please start a new conversation to continue.",
+        timestamp: expect.any(Number),
+      });
+      expect(mockContext.setCurrentAssistantMessage).toHaveBeenCalledWith(null);
+    });
+
+    it("should handle context_overflow with missing error message", () => {
+      const { result } = renderHook(() => useStreamParser());
+
+      result.current.processStreamLine(
+        JSON.stringify({
+          type: "context_overflow",
+          // error field is missing
+        }),
+        mockContext,
+      );
+
+      expect(mockContext.addMessage).toHaveBeenCalledWith({
+        type: "system",
+        subtype: "context_overflow",
+        message:
+          "The conversation has exceeded the context limit. Please start a new conversation to continue.",
+        timestamp: expect.any(Number),
+      });
+    });
   });
 
   describe("Mixed Content Handling", () => {

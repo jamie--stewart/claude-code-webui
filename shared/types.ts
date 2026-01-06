@@ -1,5 +1,5 @@
 export interface StreamResponse {
-  type: "claude_json" | "error" | "done" | "aborted";
+  type: "claude_json" | "error" | "done" | "aborted" | "context_overflow";
   data?: unknown; // SDKMessage object for claude_json type
   error?: string;
 }

@@ -21,6 +21,7 @@ vi.mock("../utils/logger", () => ({
   logger: {
     chat: {
       debug: vi.fn(),
+      warn: vi.fn(),
       error: vi.fn(),
     },
   },
@@ -444,6 +445,123 @@ describe("Chat Handler - Permission Mode Tests", () => {
       expect(errorResponse).toEqual({
         type: "error",
         error: "SDK execution failed",
+      });
+    });
+
+    describe("Context Overflow Detection", () => {
+      const contextOverflowTestCases = [
+        {
+          name: "exceed context limit",
+          errorMessage:
+            "input length and `max_tokens` exceed context limit: 150000 + 8096 > 128000",
+        },
+        {
+          name: "exceed context limit (case insensitive)",
+          errorMessage: "EXCEED CONTEXT LIMIT",
+        },
+        {
+          name: "context window exceeded",
+          errorMessage: "context window exceeded",
+        },
+        {
+          name: "context length exceeded",
+          errorMessage: "The context length has been exceeded",
+        },
+        {
+          name: "maximum context length",
+          errorMessage: "maximum context length exceeded",
+        },
+        { name: "max context size", errorMessage: "max context size reached" },
+        { name: "max context limit", errorMessage: "max context limit hit" },
+        { name: "token limit exceeded", errorMessage: "token limit exceeded" },
+        {
+          name: "input too long",
+          errorMessage: "The input is too long for this model",
+        },
+        {
+          name: "conversation too long",
+          errorMessage: "The conversation is too long to continue",
+        },
+      ];
+
+      for (const testCase of contextOverflowTestCases) {
+        it(`should detect context overflow for pattern: ${testCase.name}`, async () => {
+          const chatRequest: ChatRequest = {
+            message: "Test message",
+            requestId: `test-overflow-${testCase.name}`,
+          };
+
+          mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
+
+          mockQuery.mockReturnValue({
+            [Symbol.asyncIterator]: async function* () {
+              throw new Error(testCase.errorMessage);
+            },
+            interrupt: vi.fn(),
+            next: vi.fn(),
+            return: vi.fn(),
+            throw: vi.fn(),
+          } as any);
+
+          const response = await handleChatRequest(
+            mockContext,
+            requestAbortControllers,
+          );
+          const reader = response.body!.getReader();
+          const decoder = new TextDecoder();
+
+          let allChunks = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            allChunks += decoder.decode(value);
+          }
+
+          const lines = allChunks.trim().split("\n");
+          expect(lines).toHaveLength(1);
+
+          const errorResponse = JSON.parse(lines[0]);
+          expect(errorResponse.type).toBe("context_overflow");
+          expect(errorResponse.error).toContain("context limit");
+        });
+      }
+
+      it("should not detect context overflow for unrelated errors", async () => {
+        const chatRequest: ChatRequest = {
+          message: "Test message",
+          requestId: "test-non-overflow",
+        };
+
+        mockContext.req.json = vi.fn().mockResolvedValue(chatRequest);
+
+        mockQuery.mockReturnValue({
+          [Symbol.asyncIterator]: async function* () {
+            throw new Error("Network connection failed");
+          },
+          interrupt: vi.fn(),
+          next: vi.fn(),
+          return: vi.fn(),
+          throw: vi.fn(),
+        } as any);
+
+        const response = await handleChatRequest(
+          mockContext,
+          requestAbortControllers,
+        );
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+
+        let allChunks = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          allChunks += decoder.decode(value);
+        }
+
+        const lines = allChunks.trim().split("\n");
+        const errorResponse = JSON.parse(lines[0]);
+        expect(errorResponse.type).toBe("error");
+        expect(errorResponse.error).toBe("Network connection failed");
       });
     });
 
