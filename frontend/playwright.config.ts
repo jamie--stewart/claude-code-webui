@@ -15,7 +15,7 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: "html",
+  reporter: [["html", { open: "never" }]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -31,14 +31,37 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
 
-  /* Configure projects for major browsers */
+  /* Snapshot comparison settings */
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixels: 100, // Allow small anti-aliasing differences
+      threshold: 0.2, // 20% pixel difference threshold
+    },
+  },
+
+  /* Configure projects for desktop and mobile viewports */
   projects: [
     {
-      name: "chromium",
+      name: "desktop",
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 720 },
         // Disable web security for demo recording
+        launchOptions: {
+          args: [
+            "--disable-web-security",
+            "--disable-features=VizDisplayCompositor",
+          ],
+        },
+      },
+    },
+    {
+      name: "mobile",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 375, height: 667 },
+        isMobile: true,
+        hasTouch: true,
         launchOptions: {
           args: [
             "--disable-web-security",
