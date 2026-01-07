@@ -83,3 +83,22 @@ export interface ConversationHistory {
     messageCount: number;
   };
 }
+
+/**
+ * AskUserQuestion types for interactive user prompts
+ * Used by both frontend UI and backend message processing
+ */
+
+/** Option structure for AskUserQuestion prompts */
+export interface AskUserQuestionOption {
+  label: string;
+  description: string;
+}
+
+/** Question structure for AskUserQuestion tool */
+export interface AskUserQuestion {
+  question: string;
+  header: string;
+  multiSelect: boolean;
+  options: AskUserQuestionOption[];
+}
