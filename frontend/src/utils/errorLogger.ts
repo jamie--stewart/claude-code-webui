@@ -5,7 +5,7 @@
  * context information, and optional remote error reporting.
  */
 
-import { isDevelopment, isProduction } from "./environment";
+import { isDevelopment } from "./environment";
 
 /**
  * Log levels in order of severity
