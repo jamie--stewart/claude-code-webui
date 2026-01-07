@@ -26,7 +26,7 @@ export function CopyButton({
       setCopied(true);
       // Reset after 2 seconds
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       // Fallback for older browsers
       const textArea = document.createElement("textarea");
       textArea.value = content;

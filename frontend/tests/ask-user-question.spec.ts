@@ -231,7 +231,9 @@ test.describe("AskUserQuestion Single-Select", () => {
   });
 
   test("should submit selected option", async ({ page }) => {
-    let capturedRequest: any = null;
+    let capturedRequest: {
+      toolResult: { tool_use_id: string; is_error: boolean; content: string };
+    } | null = null;
 
     // Re-route to capture the answer
     await page.route("**/api/chat", async (route) => {
@@ -451,7 +453,9 @@ test.describe("AskUserQuestion Other Option", () => {
   });
 
   test("should submit custom text for Other option", async ({ page }) => {
-    let capturedRequest: any = null;
+    let capturedRequest: {
+      toolResult: { tool_use_id: string; is_error: boolean; content: string };
+    } | null = null;
 
     // Re-route to capture the answer
     await page.route("**/api/chat", async (route) => {
@@ -490,7 +494,9 @@ test.describe("AskUserQuestion Cancel Flow", () => {
   }) => {
     const sessionId = "test-session-cancel";
     const toolUseId = "toolu_cancel";
-    let capturedRequest: any = null;
+    let capturedRequest: {
+      toolResult: { tool_use_id: string; is_error: boolean; content: string };
+    } | null = null;
 
     await page.route("**/api/projects", async (route) => {
       await route.fulfill({
@@ -686,7 +692,9 @@ test.describe("AskUserQuestion Multiple Questions", () => {
   }) => {
     const sessionId = "test-session-multiple";
     const toolUseId = "toolu_multiple";
-    let capturedRequest: any = null;
+    let capturedRequest: {
+      toolResult: { tool_use_id: string; is_error: boolean; content: string };
+    } | null = null;
 
     await page.route("**/api/projects", async (route) => {
       await route.fulfill({
