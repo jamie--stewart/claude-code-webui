@@ -15,14 +15,8 @@ import { MessageContainer } from "./messages/MessageContainer";
 import { CollapsibleDetails } from "./messages/CollapsibleDetails";
 import { CodeBlock } from "./messages/CodeBlock";
 import { CopyButton } from "./messages/CopyButton";
+import { ToolResultDisplay } from "./messages/ToolResultDisplay";
 import { MESSAGE_CONSTANTS } from "../utils/constants";
-import {
-  createEditResult,
-  createBashPreview,
-  createContentPreview,
-  isEditToolUseResult,
-  isBashToolUseResult,
-} from "../utils/contentUtils";
 import {
   parseContentWithCodeBlocks,
   hasCodeBlocks,
@@ -251,74 +245,12 @@ interface ToolResultMessageComponentProps {
 export function ToolResultMessageComponent({
   message,
 }: ToolResultMessageComponentProps) {
-  const toolUseResult = message.toolUseResult;
-
-  let previewContent: string | undefined;
-  let previewSummary: string | undefined;
-  let maxPreviewLines = 5;
-  let displayContent = message.content;
-  let defaultExpanded = false;
-
-  // Handle Edit tool results with structuredPatch
-  if (message.toolName === "Edit" && isEditToolUseResult(toolUseResult)) {
-    const editResult = createEditResult(
-      toolUseResult.structuredPatch,
-      message.content,
-      20, // autoExpandThreshold: auto-expand if 20 lines or fewer
-    );
-    displayContent = editResult.details;
-    previewSummary = editResult.summary;
-    previewContent = editResult.previewContent;
-    defaultExpanded = editResult.defaultExpanded;
-    maxPreviewLines = 20; // Use 20 for Edit results to match previewContent
-  }
-
-  // Handle Bash tool results with stdout/stderr
-  else if (message.toolName === "Bash" && isBashToolUseResult(toolUseResult)) {
-    const isError = Boolean(toolUseResult.stderr?.trim());
-    const bashPreview = createBashPreview(
-      toolUseResult.stdout || "",
-      toolUseResult.stderr || "",
-      isError,
-      5,
-    );
-    if (bashPreview.hasMore) {
-      previewContent = bashPreview.preview;
-    }
-  }
-
-  // Handle specific tool results that benefit from content preview
-  // Note: Read tool should NOT show preview, only line counts in summary
-  else if (message.toolName === "Grep" && message.content.trim().length > 0) {
-    const contentPreview = createContentPreview(message.content, 5);
-    if (contentPreview.hasMore) {
-      previewContent = contentPreview.preview;
-    }
-  }
-
-  // Determine if preview should be shown for this tool
-  const shouldShowPreview =
-    message.toolName === "Bash" ||
-    message.toolName === "Edit" ||
-    message.toolName === "Grep";
-
   return (
-    <CollapsibleDetails
-      label={message.toolName}
-      details={displayContent}
-      badge={message.toolName === "Edit" ? undefined : message.summary}
-      icon={<span className="bg-emerald-400 dark:bg-emerald-500">✓</span>}
-      colorScheme={{
-        header: "text-emerald-800 dark:text-emerald-300",
-        content: "text-emerald-700 dark:text-emerald-300",
-        border: "border-emerald-200 dark:border-emerald-700",
-        bg: "bg-emerald-50/80 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800",
-      }}
-      previewContent={previewContent}
-      previewSummary={previewSummary}
-      maxPreviewLines={maxPreviewLines}
-      showPreview={shouldShowPreview}
-      defaultExpanded={defaultExpanded}
+    <ToolResultDisplay
+      toolName={message.toolName}
+      content={message.content}
+      summary={message.summary}
+      toolUseResult={message.toolUseResult}
     />
   );
 }
