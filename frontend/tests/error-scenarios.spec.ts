@@ -5,6 +5,18 @@ import { test, expect } from "@playwright/test";
  * Tests: network errors, API failures, timeout scenarios, invalid inputs, and edge cases in chat flow
  */
 
+// Timeout constants for consistent test configuration
+const TIMEOUTS = {
+  /** Timeout for waiting for elements to appear */
+  ELEMENT: 10000,
+  /** Timeout for navigation and page loads */
+  NAVIGATION: 10000,
+  /** Short timeout for quick assertions */
+  SHORT: 5000,
+  /** Simulated slow response (kept short to avoid slow tests) */
+  SLOW_RESPONSE: 100,
+} as const;
+
 // Mock projects response
 const mockProjects = {
   projects: [{ path: "/test/project", encodedName: "test-project" }],
@@ -20,24 +32,25 @@ test.describe("Network Error Handling", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
     // Should show error state
-    await expect(page.getByText(/Error/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Error/i)).toBeVisible({
+      timeout: TIMEOUTS.ELEMENT,
+    });
   });
 
   test("should handle network timeout gracefully", async ({ page }) => {
-    // Mock a very slow response that should trigger timeout handling
+    // Mock a slow response - we abort it early to keep tests fast
+    // The test verifies the loading state appears while waiting
     await page.route("**/api/projects", async (route) => {
-      // Simulate timeout by never resolving
-      await new Promise((resolve) => setTimeout(resolve, 30000));
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(mockProjects),
-      });
+      // Small delay to ensure loading state is visible, then abort
+      await new Promise((resolve) =>
+        setTimeout(resolve, TIMEOUTS.SLOW_RESPONSE),
+      );
+      await route.abort("timedout");
     });
 
     await page.goto("/");
 
-    // Should show loading state
+    // Should show loading state initially
     await expect(page.getByText("Loading projects...")).toBeVisible();
   });
 
@@ -68,14 +81,16 @@ test.describe("Network Error Handling", () => {
     await page.goto("/", { waitUntil: "networkidle" });
 
     // Should show error initially
-    await expect(page.getByText(/Error/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Error/i)).toBeVisible({
+      timeout: TIMEOUTS.SHORT,
+    });
 
     // Reload to retry
     await page.reload();
 
     // Should now show projects
     await expect(page.locator('[data-testid="project-card"]')).toBeVisible({
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 });
@@ -94,7 +109,9 @@ test.describe("API Error Responses", () => {
 
     await page.goto("/", { waitUntil: "networkidle" });
 
-    await expect(page.getByText(/Error/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Error/i)).toBeVisible({
+      timeout: TIMEOUTS.SHORT,
+    });
   });
 
   test("should display error for 404 Not Found", async ({ page }) => {
@@ -108,7 +125,9 @@ test.describe("API Error Responses", () => {
 
     await page.goto("/", { waitUntil: "networkidle" });
 
-    await expect(page.getByText(/Error/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Error/i)).toBeVisible({
+      timeout: TIMEOUTS.SHORT,
+    });
   });
 
   test("should display error for 401 Unauthorized", async ({ page }) => {
@@ -122,7 +141,9 @@ test.describe("API Error Responses", () => {
 
     await page.goto("/", { waitUntil: "networkidle" });
 
-    await expect(page.getByText(/Error/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Error/i)).toBeVisible({
+      timeout: TIMEOUTS.SHORT,
+    });
   });
 
   test("should handle malformed JSON response gracefully", async ({ page }) => {
@@ -155,7 +176,7 @@ test.describe("Chat API Error Handling", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-input"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 
@@ -175,7 +196,7 @@ test.describe("Chat API Error Handling", () => {
     await submitButton.click();
 
     // Should handle error - input should be re-enabled after error
-    await expect(chatInput).toBeEnabled({ timeout: 10000 });
+    await expect(chatInput).toBeEnabled({ timeout: TIMEOUTS.ELEMENT });
   });
 
   test("should handle chat connection timeout", async ({ page }) => {
@@ -204,22 +225,31 @@ test.describe("Chat API Error Handling", () => {
 
     // Abort button should appear during long-running request
     const abortButton = page.locator('[data-testid="chat-abort"]');
-    await expect(abortButton).toBeVisible({ timeout: 5000 });
+    await expect(abortButton).toBeVisible({ timeout: TIMEOUTS.SHORT });
 
     // Complete the route
     resolveRoute!();
   });
 
   test("should allow abort of stuck request", async ({ page }) => {
+    // Use a promise that we control to simulate a stuck request
+    let resolveStuckRoute: () => void;
+    const stuckPromise = new Promise<void>((resolve) => {
+      resolveStuckRoute = resolve;
+    });
+
     await page.route("**/api/chat", async (route) => {
-      // Never resolve - simulate stuck request
-      await new Promise((resolve) => setTimeout(resolve, 60000));
+      // Wait until test completes or aborts - avoid long timeouts
+      await stuckPromise;
       await route.fulfill({
         status: 200,
         contentType: "text/plain",
         body: "",
       });
     });
+
+    // Cleanup: resolve the stuck promise when test ends
+    page.on("close", () => resolveStuckRoute?.());
 
     const chatInput = page.locator('[data-testid="chat-input"]');
     const submitButton = page.locator('[data-testid="chat-submit"]');
@@ -229,13 +259,13 @@ test.describe("Chat API Error Handling", () => {
 
     // Wait for abort button
     const abortButton = page.locator('[data-testid="chat-abort"]');
-    await expect(abortButton).toBeVisible({ timeout: 5000 });
+    await expect(abortButton).toBeVisible({ timeout: TIMEOUTS.SHORT });
 
     // Click abort
     await abortButton.click();
 
     // Input should be re-enabled
-    await expect(chatInput).toBeEnabled({ timeout: 5000 });
+    await expect(chatInput).toBeEnabled({ timeout: TIMEOUTS.SHORT });
   });
 });
 
@@ -252,7 +282,7 @@ test.describe("History API Error Handling", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="history-button"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 
@@ -272,7 +302,7 @@ test.describe("History API Error Handling", () => {
     // Should show error state
     await expect(
       page.getByRole("heading", { name: /Error Loading History/i }),
-    ).toBeVisible({ timeout: 5000 });
+    ).toBeVisible({ timeout: TIMEOUTS.SHORT });
   });
 
   test("should display error when specific conversation fails to load", async ({
@@ -310,7 +340,7 @@ test.describe("History API Error Handling", () => {
 
     // Wait for list to load
     await expect(page.locator('[data-testid="conversation-card"]')).toBeVisible(
-      { timeout: 5000 },
+      { timeout: TIMEOUTS.SHORT },
     );
 
     // Click on conversation
@@ -354,7 +384,7 @@ test.describe("Empty States", () => {
     await page.click('[data-testid="project-card"]');
 
     await page.waitForSelector('[data-testid="chat-messages"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     const messagesContainer = page.locator('[data-testid="chat-messages"]');
@@ -385,14 +415,14 @@ test.describe("Empty States", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="history-button"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     await page.click('[data-testid="history-button"]');
 
     // Should show empty state message
     await expect(page.getByText("No Conversations Yet")).toBeVisible({
-      timeout: 5000,
+      timeout: TIMEOUTS.SHORT,
     });
   });
 });
@@ -410,7 +440,7 @@ test.describe("Input Validation and Edge Cases", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-input"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 
@@ -505,7 +535,7 @@ test.describe("URL and Navigation Edge Cases", () => {
 
     // Should still render chat page (frontend doesn't validate project existence)
     await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 
@@ -527,7 +557,7 @@ test.describe("URL and Navigation Edge Cases", () => {
 
     // Should handle gracefully without crashing
     await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 
@@ -538,7 +568,7 @@ test.describe("URL and Navigation Edge Cases", () => {
 
     // Should render the page with the decoded path
     await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 
@@ -568,7 +598,7 @@ test.describe("Concurrent Request Handling", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-input"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 
@@ -648,19 +678,19 @@ test.describe("Browser State Edge Cases", () => {
     // Select project
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-input"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     // Go back
     await page.goBack();
     await expect(page.locator('[data-testid="project-card"]')).toBeVisible({
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     // Go forward
     await page.goForward();
     await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 });

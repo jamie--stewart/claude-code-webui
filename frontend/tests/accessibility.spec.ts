@@ -6,6 +6,16 @@ import { test, expect } from "@playwright/test";
  * focus management, and form accessibility
  */
 
+// Timeout constants for consistent test configuration
+const TIMEOUTS = {
+  /** Timeout for waiting for elements to appear */
+  ELEMENT: 10000,
+  /** Timeout for navigation and page loads */
+  NAVIGATION: 10000,
+  /** Short timeout for quick assertions */
+  SHORT: 5000,
+} as const;
+
 // Mock projects response
 const mockProjects = {
   projects: [
@@ -34,7 +44,7 @@ test.describe("Keyboard Navigation", () => {
     }) => {
       // Wait for projects to load
       await page.waitForSelector('[data-testid="project-card"]', {
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
 
       // Tab to navigate to the first focusable element
@@ -63,7 +73,7 @@ test.describe("Keyboard Navigation", () => {
     }) => {
       // Wait for projects to load
       await page.waitForSelector('[data-testid="project-card"]', {
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
 
       // Focus the first project card
@@ -78,7 +88,7 @@ test.describe("Keyboard Navigation", () => {
 
       // Should navigate to chat page
       await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
     });
 
@@ -86,7 +96,7 @@ test.describe("Keyboard Navigation", () => {
       page,
     }) => {
       await page.waitForSelector('[data-testid="project-card"]', {
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
 
       const firstCard = page.locator('[data-testid="project-card"]').first();
@@ -95,7 +105,7 @@ test.describe("Keyboard Navigation", () => {
       await page.keyboard.press(" ");
 
       await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
     });
   });
@@ -113,7 +123,7 @@ test.describe("Keyboard Navigation", () => {
       await page.goto("/", { waitUntil: "networkidle" });
       await page.click('[data-testid="project-card"]');
       await page.waitForSelector('[data-testid="chat-input"]', {
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
     });
 
@@ -227,7 +237,7 @@ test.describe("Keyboard Navigation", () => {
       await page.goto("/", { waitUntil: "networkidle" });
       await page.click('[data-testid="project-card"]');
       await page.waitForSelector('[data-testid="history-button"]', {
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
     });
 
@@ -243,7 +253,7 @@ test.describe("Keyboard Navigation", () => {
       await expect(
         page.locator('[data-testid="conversation-card"]'),
       ).toBeVisible({
-        timeout: 5000,
+        timeout: TIMEOUTS.SHORT,
       });
     });
 
@@ -252,7 +262,7 @@ test.describe("Keyboard Navigation", () => {
     }) => {
       await page.click('[data-testid="history-button"]');
       await page.waitForSelector('[data-testid="conversation-card"]', {
-        timeout: 5000,
+        timeout: TIMEOUTS.SHORT,
       });
 
       // Focus the first conversation card
@@ -277,7 +287,7 @@ test.describe("Keyboard Navigation", () => {
       const conversationCard = page
         .locator('[data-testid="conversation-card"]')
         .first();
-      await expect(conversationCard).toBeVisible({ timeout: 5000 });
+      await expect(conversationCard).toBeVisible({ timeout: TIMEOUTS.SHORT });
 
       await conversationCard.focus();
       await page.keyboard.press("Enter");
@@ -302,7 +312,7 @@ test.describe("ARIA Labels and Screen Reader Compatibility", () => {
       await page.goto("/", { waitUntil: "networkidle" });
       await page.click('[data-testid="project-card"]');
       await page.waitForSelector('[data-testid="chat-input"]', {
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
     });
 
@@ -357,7 +367,7 @@ test.describe("ARIA Labels and Screen Reader Compatibility", () => {
       await submitButton.click();
 
       const abortButton = page.locator('[data-testid="chat-abort"]');
-      await expect(abortButton).toBeVisible({ timeout: 5000 });
+      await expect(abortButton).toBeVisible({ timeout: TIMEOUTS.SHORT });
 
       const ariaLabel = await abortButton.getAttribute("aria-label");
       expect(ariaLabel).toBeTruthy();
@@ -379,7 +389,7 @@ test.describe("ARIA Labels and Screen Reader Compatibility", () => {
       await page.goto("/", { waitUntil: "networkidle" });
       await page.click('[data-testid="project-card"]');
       await page.waitForSelector('[data-testid="chat-input"]', {
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
     });
 
@@ -432,7 +442,7 @@ test.describe("ARIA Labels and Screen Reader Compatibility", () => {
 
       // Should have an h1 heading
       const h1 = page.getByRole("heading", { level: 1 });
-      await expect(h1).toBeVisible({ timeout: 10000 });
+      await expect(h1).toBeVisible({ timeout: TIMEOUTS.ELEMENT });
     });
   });
 });
@@ -451,7 +461,7 @@ test.describe("Focus Management", () => {
       await page.goto("/", { waitUntil: "networkidle" });
       await page.click('[data-testid="project-card"]');
       await page.waitForSelector('[data-testid="chat-input"]', {
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
     });
 
@@ -465,7 +475,7 @@ test.describe("Focus Management", () => {
 
         // Wait for modal to appear
         const modal = page.locator('[data-testid="settings-modal"]');
-        await expect(modal).toBeVisible({ timeout: 5000 });
+        await expect(modal).toBeVisible({ timeout: TIMEOUTS.SHORT });
 
         // Tab multiple times - focus should stay within modal
         for (let i = 0; i < 10; i++) {
@@ -484,7 +494,7 @@ test.describe("Focus Management", () => {
         await settingsButton.click();
 
         const modal = page.locator('[data-testid="settings-modal"]');
-        await expect(modal).toBeVisible({ timeout: 5000 });
+        await expect(modal).toBeVisible({ timeout: TIMEOUTS.SHORT });
 
         // Press Escape to close
         await page.keyboard.press("Escape");
@@ -503,7 +513,7 @@ test.describe("Focus Management", () => {
         await settingsButton.click();
 
         const modal = page.locator('[data-testid="settings-modal"]');
-        await expect(modal).toBeVisible({ timeout: 5000 });
+        await expect(modal).toBeVisible({ timeout: TIMEOUTS.SHORT });
 
         // Close with Escape
         await page.keyboard.press("Escape");
@@ -528,7 +538,7 @@ test.describe("Focus Management", () => {
       await page.goto("/", { waitUntil: "networkidle" });
       await page.click('[data-testid="project-card"]');
       await page.waitForSelector('[data-testid="chat-input"]', {
-        timeout: 10000,
+        timeout: TIMEOUTS.ELEMENT,
       });
     });
 
@@ -557,7 +567,7 @@ test.describe("Form Accessibility", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-input"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
   });
 
@@ -634,7 +644,7 @@ test.describe("Visual Focus Indicators", () => {
   }) => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="project-card"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     const firstCard = page.locator('[data-testid="project-card"]').first();
@@ -653,7 +663,7 @@ test.describe("Visual Focus Indicators", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-submit"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     const submitButton = page.locator('[data-testid="chat-submit"]');
@@ -670,7 +680,7 @@ test.describe("Visual Focus Indicators", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-input"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     const chatInput = page.locator('[data-testid="chat-input"]');
@@ -696,7 +706,7 @@ test.describe("Skip Navigation and Landmarks", () => {
 
     await page.goto("/", { waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="project-card"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     // Count tab stops to reach the first project card
@@ -734,7 +744,7 @@ test.describe("Color Independence", () => {
 
     // Error message should include text, not just color
     const errorElement = page.getByText(/Error/i);
-    await expect(errorElement).toBeVisible({ timeout: 5000 });
+    await expect(errorElement).toBeVisible({ timeout: TIMEOUTS.SHORT });
 
     // Error text should be descriptive
     const errorText = await errorElement.innerText();
@@ -753,7 +763,7 @@ test.describe("Color Independence", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-submit"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     const submitButton = page.locator('[data-testid="chat-submit"]');
@@ -780,7 +790,7 @@ test.describe("Touch Target Sizes", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-submit"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     const submitButton = page.locator('[data-testid="chat-submit"]');
@@ -807,7 +817,7 @@ test.describe("Touch Target Sizes", () => {
 
     await page.goto("/", { waitUntil: "networkidle" });
     await page.waitForSelector('[data-testid="project-card"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     const projectCard = page.locator('[data-testid="project-card"]').first();
@@ -841,7 +851,7 @@ test.describe("Mobile Accessibility", () => {
 
     // Project cards should be visible
     await expect(page.locator('[data-testid="project-card"]')).toBeVisible({
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     // Click on project
@@ -849,7 +859,7 @@ test.describe("Mobile Accessibility", () => {
 
     // Chat input should be visible
     await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     // Submit button should be visible
@@ -868,7 +878,7 @@ test.describe("Mobile Accessibility", () => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.click('[data-testid="project-card"]');
     await page.waitForSelector('[data-testid="chat-input"]', {
-      timeout: 10000,
+      timeout: TIMEOUTS.ELEMENT,
     });
 
     // All main controls should be visible without scrolling
