@@ -111,19 +111,11 @@ export interface TodoMessage {
   timestamp: number;
 }
 
-// AskUserQuestion option structure
-export interface AskUserQuestionOption {
-  label: string;
-  description: string;
-}
-
-// AskUserQuestion question structure
-export interface AskUserQuestion {
-  question: string;
-  header: string;
-  multiSelect: boolean;
-  options: AskUserQuestionOption[];
-}
+// AskUserQuestion types - imported from shared package
+export type {
+  AskUserQuestionOption,
+  AskUserQuestion,
+} from "../../shared/types";
 
 // AskUserQuestion message for user interaction
 export interface AskUserQuestionMessage {
