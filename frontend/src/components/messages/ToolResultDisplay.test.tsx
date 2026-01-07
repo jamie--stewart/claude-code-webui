@@ -354,10 +354,27 @@ src/utils.ts:20:function test() {}`;
 
 describe("FileOperationContent", () => {
   it("renders diff content using DiffDisplay", () => {
-    render(<FileOperationContent content="+added line" />);
+    // Diff detection requires at least 2 diff lines or a hunk header
+    render(<FileOperationContent content={"+added line\n-removed line"} />);
 
     const addedLine = screen.getByText("+added line");
     expect(addedLine.parentElement).toHaveClass("bg-green-100");
+  });
+
+  it("renders content with hunk header as diff", () => {
+    render(<FileOperationContent content={"@@ -1,3 +1,4 @@\n context"} />);
+
+    const hunkHeader = screen.getByText("@@ -1,3 +1,4 @@");
+    expect(hunkHeader.parentElement).toHaveClass("bg-blue-100");
+  });
+
+  it("does not treat single + line as diff", () => {
+    // A single line starting with + should not be treated as diff
+    render(<FileOperationContent content="+1 (555) 123-4567" />);
+
+    // Should render as plain text, not with diff highlighting
+    const text = screen.getByText("+1 (555) 123-4567");
+    expect(text.parentElement).not.toHaveClass("bg-green-100");
   });
 
   it("uses CodeBlock for content with language", () => {

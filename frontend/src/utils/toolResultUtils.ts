@@ -234,11 +234,11 @@ function parseBashResult(
   }
 
   // Parse duration from summary if available
-  const durationMatch = summary.match(/(\d+(?:\.\d+)?)\s*(?:ms|s)/i);
+  const durationMatch = summary.match(/(\d+(?:\.\d+)?)\s*(ms|s)\b/i);
   if (durationMatch) {
     const value = parseFloat(durationMatch[1]);
-    metadata.duration =
-      summary.includes("s") && !summary.includes("ms") ? value * 1000 : value;
+    const unit = durationMatch[2].toLowerCase();
+    metadata.duration = unit === "s" ? value * 1000 : value;
   }
 
   return { status, metadata, displayContent, language: "bash" };

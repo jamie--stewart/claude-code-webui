@@ -182,14 +182,19 @@ function ToolMetadataDisplay({
 
   return (
     <div className="flex items-center gap-2">
-      {items.map((item, index) => (
-        <React.Fragment key={index}>
-          {index > 0 && (
-            <span className={`${colorScheme.content} opacity-40`}>|</span>
-          )}
-          {item}
-        </React.Fragment>
-      ))}
+      {items.map((item, index) => {
+        // Get the key from the item's props
+        const itemKey =
+          React.isValidElement(item) && item.key ? item.key : index;
+        return (
+          <React.Fragment key={itemKey}>
+            {index > 0 && (
+              <span className={`${colorScheme.content} opacity-40`}>|</span>
+            )}
+            {item}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -250,11 +255,13 @@ function FileOperationContent({
   language,
 }: FileOperationContentProps) {
   // Check if content looks like a diff
-  const isDiff =
-    content.includes("\n+") ||
-    content.includes("\n-") ||
-    content.startsWith("+") ||
-    content.startsWith("-");
+  // Look for diff hunk headers (@@ ... @@) or consecutive +/- lines
+  const lines = content.split("\n");
+  const hasHunkHeader = lines.some((line) => line.startsWith("@@"));
+  const hasDiffLines =
+    lines.filter((line) => line.startsWith("+") || line.startsWith("-"))
+      .length >= 2;
+  const isDiff = hasHunkHeader || hasDiffLines;
 
   if (isDiff) {
     return <DiffDisplay content={content} />;
