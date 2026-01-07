@@ -10,6 +10,7 @@ import type {
 } from "../../types";
 import { getChatUrl } from "../../config/api";
 import type { StreamingContext } from "../streaming/useMessageProcessor";
+import { ApiError, getErrorMessage } from "../../types/errors";
 
 interface MessageSendingDependencies {
   // State
@@ -131,7 +132,16 @@ export function useMessageSending(deps: MessageSendingDependencies) {
           } as ChatRequest),
         });
 
-        if (!response.body) throw new Error("No response body");
+        if (!response.ok) {
+          throw ApiError.fromResponse(response, getChatUrl());
+        }
+
+        if (!response.body) {
+          throw new ApiError("No response body received", {
+            endpoint: getChatUrl(),
+            retryable: true,
+          });
+        }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -179,10 +189,11 @@ export function useMessageSending(deps: MessageSendingDependencies) {
         }
       } catch (error) {
         console.error("Failed to send message:", error);
+        const errorMessage = getErrorMessage(error);
         addMessage({
           type: "chat",
           role: "assistant",
-          content: "Error: Failed to get response",
+          content: `Error: ${errorMessage}`,
           timestamp: Date.now(),
         });
       } finally {

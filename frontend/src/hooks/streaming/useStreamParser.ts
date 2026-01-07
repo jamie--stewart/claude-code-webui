@@ -17,6 +17,7 @@ import {
   UnifiedMessageProcessor,
   type ProcessingContext,
 } from "../../utils/UnifiedMessageProcessor";
+import { StreamError } from "../../types/errors";
 
 export function useStreamParser() {
   // Create a single unified processor instance
@@ -136,7 +137,12 @@ export function useStreamParser() {
           context.setCurrentAssistantMessage(null);
         }
       } catch (parseError) {
-        console.error("Failed to parse stream line:", parseError);
+        const streamError = new StreamError("Failed to parse stream response", {
+          line,
+          parseError,
+          retryable: false,
+        });
+        console.error("Stream parsing error:", streamError);
       }
     },
     [processClaudeData],

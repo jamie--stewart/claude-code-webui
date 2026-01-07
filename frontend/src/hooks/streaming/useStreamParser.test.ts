@@ -278,8 +278,12 @@ describe("useStreamParser", () => {
       result.current.processStreamLine("invalid json", mockContext);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to parse stream line:",
-        expect.any(Error),
+        "Stream parsing error:",
+        expect.objectContaining({
+          name: "StreamError",
+          message: "Failed to parse stream response",
+          line: "invalid json",
+        }),
       );
       expect(mockContext.addMessage).not.toHaveBeenCalled();
 

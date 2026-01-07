@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { ProjectSelector } from "./components/ProjectSelector";
 import { ChatPage } from "./components/ChatPage";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { isDevelopment } from "./utils/environment";
 
@@ -17,22 +18,24 @@ const DemoPage = isDevelopment()
 function App() {
   return (
     <SettingsProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<ProjectSelector />} />
-          <Route path="/projects/*" element={<ChatPage />} />
-          {DemoPage && (
-            <Route
-              path="/demo"
-              element={
-                <Suspense fallback={<div>Loading demo...</div>}>
-                  <DemoPage />
-                </Suspense>
-              }
-            />
-          )}
-        </Routes>
-      </Router>
+      <ErrorBoundary>
+        <Router>
+          <Routes>
+            <Route path="/" element={<ProjectSelector />} />
+            <Route path="/projects/*" element={<ChatPage />} />
+            {DemoPage && (
+              <Route
+                path="/demo"
+                element={
+                  <Suspense fallback={<div>Loading demo...</div>}>
+                    <DemoPage />
+                  </Suspense>
+                }
+              />
+            )}
+          </Routes>
+        </Router>
+      </ErrorBoundary>
     </SettingsProvider>
   );
 }
