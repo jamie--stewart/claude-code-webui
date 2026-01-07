@@ -1,36 +1,27 @@
 import { useEffect, useCallback, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronLeftIcon } from "@heroicons/react/24/outline";
-import type {
-  ChatRequest,
-  ChatMessage,
-  ProjectInfo,
-  PermissionMode,
-  AskUserQuestion,
-  ToolResultContent,
-  ImageContent,
-} from "../types";
+import { useLocation, useSearchParams } from "react-router-dom";
+import type { ProjectInfo, AskUserQuestion } from "../types";
 import { useClaudeStreaming } from "../hooks/useClaudeStreaming";
 import { useChatState } from "../hooks/chat/useChatState";
 import { usePermissions } from "../hooks/chat/usePermissions";
 import { usePermissionMode } from "../hooks/chat/usePermissionMode";
 import { useAbortController } from "../hooks/chat/useAbortController";
 import { useImagePaste } from "../hooks/chat/useImagePaste";
+import { useNavigation } from "../hooks/chat/useNavigation";
+import { useMessageSending } from "../hooks/chat/useMessageSending";
+import { usePermissionHandlers } from "../hooks/chat/usePermissionHandlers";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
-import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
-import { HistoryButton } from "./chat/HistoryButton";
+import { ChatHeader } from "./chat/ChatHeader";
 import { ChatInput } from "./chat/ChatInput";
 import { ChatMessages } from "./chat/ChatMessages";
 import { HistoryView } from "./HistoryView";
-import { getChatUrl, getProjectsUrl } from "../config/api";
+import { getProjectsUrl } from "../config/api";
 import { KEYBOARD_SHORTCUTS } from "../utils/constants";
 import { normalizeWindowsPath } from "../utils/pathUtils";
-import type { StreamingContext } from "../hooks/streaming/useMessageProcessor";
 
 export function ChatPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -58,6 +49,16 @@ export function ChatPage() {
 
   // Permission mode state management
   const { permissionMode, setPermissionMode } = usePermissionMode();
+
+  // Navigation handlers
+  const {
+    handleBackToChat,
+    handleBackToHistory,
+    handleBackToProjects,
+    handleBackToProjectChat,
+    handleHistoryClick,
+    handleStartNewConversation,
+  } = useNavigation({ workingDirectory });
 
   // Get encoded name for current working directory
   const getEncodedName = useCallback(() => {
@@ -136,21 +137,14 @@ export function ChatPage() {
   });
 
   // Image paste state management
-  const {
-    images,
-    handlePaste,
-    removeImage,
-    clearImages,
-    getImagesForRequest,
-    hasImages,
-  } = useImagePaste();
+  const { images, handlePaste, removeImage, clearImages, getImagesForRequest } =
+    useImagePaste();
 
+  // Permission error and ask user question handlers (defined before useMessageSending)
   const handlePermissionError = useCallback(
     (toolName: string, patterns: string[], toolUseId: string) => {
-      // Check if this is an ExitPlanMode permission error
       if (patterns.includes("ExitPlanMode")) {
-        // For ExitPlanMode, show plan permission interface instead of regular permission
-        showPlanModeRequest(""); // Empty plan content since it was already displayed
+        showPlanModeRequest("");
       } else {
         showPermissionRequest(toolName, patterns, toolUseId);
       }
@@ -165,321 +159,58 @@ export function ChatPage() {
     [showAskUserQuestion],
   );
 
-  const sendMessage = useCallback(
-    async (
-      messageContent?: string,
-      tools?: string[],
-      hideUserMessage = false,
-      overridePermissionMode?: PermissionMode,
-      toolResult?: ToolResultContent,
-      messageImages?: ImageContent[],
-    ) => {
-      const content = messageContent || input.trim();
-      const imagesToSend = messageImages || getImagesForRequest();
+  // Message sending hook
+  const { sendMessage } = useMessageSending({
+    input,
+    isLoading,
+    currentSessionId,
+    allowedTools,
+    hasShownInitMessage,
+    currentAssistantMessage,
+    workingDirectory,
+    permissionMode,
+    setCurrentSessionId,
+    setHasShownInitMessage,
+    setHasReceivedInit,
+    setCurrentAssistantMessage,
+    generateRequestId,
+    clearInput,
+    clearImages,
+    getImagesForRequest,
+    startRequest,
+    addMessage,
+    updateLastMessage,
+    resetRequestState,
+    processStreamLine,
+    createAbortHandler,
+    onPermissionError: handlePermissionError,
+    onAskUserQuestion: handleAskUserQuestion,
+  });
 
-      // Need either text content or images to send
-      if ((!content && imagesToSend.length === 0) || isLoading) return;
-
-      const requestId = generateRequestId();
-
-      // Only add user message to chat if not hidden
-      if (!hideUserMessage) {
-        const imageIndicator =
-          imagesToSend.length > 0
-            ? ` [${imagesToSend.length} image${imagesToSend.length > 1 ? "s" : ""}]`
-            : "";
-        const userMessage: ChatMessage = {
-          type: "chat",
-          role: "user",
-          content: content + imageIndicator,
-          timestamp: Date.now(),
-        };
-        addMessage(userMessage);
-      }
-
-      if (!messageContent) {
-        clearInput();
-        clearImages(); // Clear images after sending
-      }
-      startRequest();
-
-      try {
-        const response = await fetch(getChatUrl(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: content,
-            requestId,
-            ...(currentSessionId ? { sessionId: currentSessionId } : {}),
-            allowedTools: tools || allowedTools,
-            ...(workingDirectory ? { workingDirectory } : {}),
-            permissionMode: overridePermissionMode || permissionMode,
-            ...(toolResult ? { toolResult } : {}),
-            ...(imagesToSend.length > 0 ? { images: imagesToSend } : {}),
-          } as ChatRequest),
-        });
-
-        if (!response.body) throw new Error("No response body");
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
-        // Local state for this streaming session
-        let localHasReceivedInit = false;
-        let shouldAbort = false;
-
-        const streamingContext: StreamingContext = {
-          currentAssistantMessage,
-          setCurrentAssistantMessage,
-          addMessage,
-          updateLastMessage,
-          onSessionId: setCurrentSessionId,
-          shouldShowInitMessage: () => !hasShownInitMessage,
-          onInitMessageShown: () => setHasShownInitMessage(true),
-          get hasReceivedInit() {
-            return localHasReceivedInit;
-          },
-          setHasReceivedInit: (received: boolean) => {
-            localHasReceivedInit = received;
-            setHasReceivedInit(received);
-          },
-          onPermissionError: handlePermissionError,
-          onAbortRequest: async () => {
-            shouldAbort = true;
-            await createAbortHandler(requestId)();
-          },
-          onAskUserQuestion: handleAskUserQuestion,
-        };
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done || shouldAbort) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n").filter((line) => line.trim());
-
-          for (const line of lines) {
-            if (shouldAbort) break;
-            processStreamLine(line, streamingContext);
-          }
-
-          if (shouldAbort) break;
-        }
-      } catch (error) {
-        console.error("Failed to send message:", error);
-        addMessage({
-          type: "chat",
-          role: "assistant",
-          content: "Error: Failed to get response",
-          timestamp: Date.now(),
-        });
-      } finally {
-        resetRequestState();
-      }
-    },
-    [
-      input,
-      isLoading,
-      currentSessionId,
+  // Permission handlers hook
+  const { permissionData, planPermissionData, askUserQuestionData } =
+    usePermissionHandlers({
       allowedTools,
-      hasShownInitMessage,
-      currentAssistantMessage,
-      workingDirectory,
-      permissionMode,
-      generateRequestId,
-      clearInput,
-      clearImages,
-      getImagesForRequest,
-      startRequest,
-      addMessage,
-      updateLastMessage,
-      setCurrentSessionId,
-      setHasShownInitMessage,
-      setHasReceivedInit,
-      setCurrentAssistantMessage,
-      resetRequestState,
-      processStreamLine,
-      handlePermissionError,
-      handleAskUserQuestion,
-      createAbortHandler,
-    ],
-  );
+      permissionRequest,
+      planModeRequest,
+      askUserQuestionRequest,
+      pendingAskUserQuestionCount,
+      showPermissionRequest,
+      closePermissionRequest,
+      allowToolTemporary,
+      allowToolPermanent,
+      showPlanModeRequest,
+      closePlanModeRequest,
+      updatePermissionMode,
+      showAskUserQuestion,
+      closeAskUserQuestion,
+      currentSessionId,
+      sendMessage,
+    });
 
   const handleAbort = useCallback(() => {
     abortRequest(currentRequestId, isLoading, resetRequestState);
   }, [abortRequest, currentRequestId, isLoading, resetRequestState]);
-
-  // Permission request handlers
-  const handlePermissionAllow = useCallback(() => {
-    if (!permissionRequest) return;
-
-    // Add all patterns temporarily
-    let updatedAllowedTools = allowedTools;
-    permissionRequest.patterns.forEach((pattern) => {
-      updatedAllowedTools = allowToolTemporary(pattern, updatedAllowedTools);
-    });
-
-    closePermissionRequest();
-
-    if (currentSessionId) {
-      sendMessage("continue", updatedAllowedTools, true);
-    }
-  }, [
-    permissionRequest,
-    currentSessionId,
-    sendMessage,
-    allowedTools,
-    allowToolTemporary,
-    closePermissionRequest,
-  ]);
-
-  const handlePermissionAllowPermanent = useCallback(() => {
-    if (!permissionRequest) return;
-
-    // Add all patterns permanently
-    let updatedAllowedTools = allowedTools;
-    permissionRequest.patterns.forEach((pattern) => {
-      updatedAllowedTools = allowToolPermanent(pattern, updatedAllowedTools);
-    });
-
-    closePermissionRequest();
-
-    if (currentSessionId) {
-      sendMessage("continue", updatedAllowedTools, true);
-    }
-  }, [
-    permissionRequest,
-    currentSessionId,
-    sendMessage,
-    allowedTools,
-    allowToolPermanent,
-    closePermissionRequest,
-  ]);
-
-  const handlePermissionDeny = useCallback(() => {
-    closePermissionRequest();
-  }, [closePermissionRequest]);
-
-  // Plan mode request handlers
-  const handlePlanAcceptWithEdits = useCallback(() => {
-    updatePermissionMode("acceptEdits");
-    closePlanModeRequest();
-    if (currentSessionId) {
-      sendMessage("accept", allowedTools, true, "acceptEdits");
-    }
-  }, [
-    updatePermissionMode,
-    closePlanModeRequest,
-    currentSessionId,
-    sendMessage,
-    allowedTools,
-  ]);
-
-  const handlePlanAcceptDefault = useCallback(() => {
-    updatePermissionMode("default");
-    closePlanModeRequest();
-    if (currentSessionId) {
-      sendMessage("accept", allowedTools, true, "default");
-    }
-  }, [
-    updatePermissionMode,
-    closePlanModeRequest,
-    currentSessionId,
-    sendMessage,
-    allowedTools,
-  ]);
-
-  const handlePlanKeepPlanning = useCallback(() => {
-    updatePermissionMode("plan");
-    closePlanModeRequest();
-  }, [updatePermissionMode, closePlanModeRequest]);
-
-  // AskUserQuestion handlers
-  const handleAskUserQuestionSubmit = useCallback(
-    (answers: Record<string, string>) => {
-      const toolUseId = askUserQuestionRequest?.toolUseId;
-      closeAskUserQuestion();
-      if (currentSessionId && toolUseId) {
-        // Format answers as JSON and send as proper tool_result
-        const answerContent = JSON.stringify(answers);
-        const toolResult: ToolResultContent = {
-          tool_use_id: toolUseId,
-          content: answerContent,
-          is_error: false,
-        };
-        // Send with tool_result - message is just for logging/display purposes
-        sendMessage(answerContent, allowedTools, true, undefined, toolResult);
-      }
-    },
-    [
-      askUserQuestionRequest,
-      closeAskUserQuestion,
-      currentSessionId,
-      sendMessage,
-      allowedTools,
-    ],
-  );
-
-  const handleAskUserQuestionCancel = useCallback(() => {
-    const toolUseId = askUserQuestionRequest?.toolUseId;
-    closeAskUserQuestion();
-    if (currentSessionId && toolUseId) {
-      // Send cancellation as tool_result with is_error: true
-      const toolResult: ToolResultContent = {
-        tool_use_id: toolUseId,
-        content: "User cancelled the question.",
-        is_error: true,
-      };
-      sendMessage(
-        "User cancelled the question.",
-        allowedTools,
-        true,
-        undefined,
-        toolResult,
-      );
-    }
-  }, [
-    askUserQuestionRequest,
-    closeAskUserQuestion,
-    currentSessionId,
-    sendMessage,
-    allowedTools,
-  ]);
-
-  // Create permission data for inline permission interface
-  const permissionData = permissionRequest
-    ? {
-        patterns: permissionRequest.patterns,
-        onAllow: handlePermissionAllow,
-        onAllowPermanent: handlePermissionAllowPermanent,
-        onDeny: handlePermissionDeny,
-      }
-    : undefined;
-
-  // Create plan permission data for plan mode interface
-  const planPermissionData = planModeRequest
-    ? {
-        onAcceptWithEdits: handlePlanAcceptWithEdits,
-        onAcceptDefault: handlePlanAcceptDefault,
-        onKeepPlanning: handlePlanKeepPlanning,
-      }
-    : undefined;
-
-  // Create AskUserQuestion data for question interface
-  const askUserQuestionData = askUserQuestionRequest
-    ? {
-        questions: askUserQuestionRequest.questions,
-        onSubmit: handleAskUserQuestionSubmit,
-        onCancel: handleAskUserQuestionCancel,
-        pendingCount: pendingAskUserQuestionCount,
-      }
-    : undefined;
-
-  const handleHistoryClick = useCallback(() => {
-    const searchParams = new URLSearchParams();
-    searchParams.set("view", "history");
-    navigate({ search: searchParams.toString() });
-  }, [navigate]);
 
   const handleSettingsClick = useCallback(() => {
     setIsSettingsOpen(true);
@@ -505,39 +236,6 @@ export function ChatPage() {
     loadProjects();
   }, []);
 
-  const handleBackToChat = useCallback(() => {
-    navigate({ search: "" });
-  }, [navigate]);
-
-  const handleBackToHistory = useCallback(() => {
-    const searchParams = new URLSearchParams();
-    searchParams.set("view", "history");
-    navigate({ search: searchParams.toString() });
-  }, [navigate]);
-
-  const handleBackToProjects = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
-
-  const handleBackToProjectChat = useCallback(() => {
-    if (workingDirectory) {
-      navigate(`/projects${workingDirectory}`);
-    }
-  }, [navigate, workingDirectory]);
-
-  // Handler to start a new conversation (clear session and messages)
-  const handleStartNewConversation = useCallback(() => {
-    if (workingDirectory) {
-      // Navigate to project chat without sessionId to start fresh
-      navigate(`/projects${workingDirectory}`);
-      // Force a page reload to ensure clean state
-      window.location.reload();
-    } else {
-      // If no working directory, just reload the page
-      window.location.reload();
-    }
-  }, [navigate, workingDirectory]);
-
   // Handle global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -555,80 +253,18 @@ export function ChatPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
       <div className="max-w-6xl mx-auto p-3 sm:p-6 h-screen flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4 sm:mb-8 flex-shrink-0">
-          <div className="flex items-center gap-4">
-            {isHistoryView && (
-              <button
-                onClick={handleBackToChat}
-                className="p-2 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md"
-                aria-label="Back to chat"
-              >
-                <ChevronLeftIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-              </button>
-            )}
-            {isLoadedConversation && (
-              <button
-                onClick={handleBackToHistory}
-                className="p-2 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 backdrop-blur-sm shadow-sm hover:shadow-md"
-                aria-label="Back to history"
-              >
-                <ChevronLeftIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-              </button>
-            )}
-            <div>
-              <nav aria-label="Breadcrumb">
-                <div className="flex items-center">
-                  <button
-                    onClick={handleBackToProjects}
-                    className="text-slate-800 dark:text-slate-100 text-lg sm:text-3xl font-bold tracking-tight hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded-md px-1 -mx-1"
-                    aria-label="Back to project selection"
-                  >
-                    Claude Code Web UI
-                  </button>
-                  {(isHistoryView || sessionId) && (
-                    <>
-                      <span
-                        className="text-slate-800 dark:text-slate-100 text-lg sm:text-3xl font-bold tracking-tight mx-3 select-none"
-                        aria-hidden="true"
-                      >
-                        {" "}
-                        ›{" "}
-                      </span>
-                      <h1
-                        className="text-slate-800 dark:text-slate-100 text-lg sm:text-3xl font-bold tracking-tight"
-                        aria-current="page"
-                      >
-                        {isHistoryView
-                          ? "Conversation History"
-                          : "Conversation"}
-                      </h1>
-                    </>
-                  )}
-                </div>
-              </nav>
-              {workingDirectory && (
-                <div className="flex items-center text-sm font-mono mt-1">
-                  <button
-                    onClick={handleBackToProjectChat}
-                    className="text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded px-1 -mx-1 cursor-pointer"
-                    aria-label={`Return to new chat in ${workingDirectory}`}
-                  >
-                    {workingDirectory}
-                  </button>
-                  {sessionId && (
-                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                      Session: {sessionId.substring(0, 8)}...
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {!isHistoryView && <HistoryButton onClick={handleHistoryClick} />}
-            <SettingsButton onClick={handleSettingsClick} />
-          </div>
-        </div>
+        <ChatHeader
+          workingDirectory={workingDirectory}
+          sessionId={sessionId}
+          isHistoryView={isHistoryView}
+          isLoadedConversation={isLoadedConversation}
+          onBackToChat={handleBackToChat}
+          onBackToHistory={handleBackToHistory}
+          onBackToProjects={handleBackToProjects}
+          onBackToProjectChat={handleBackToProjectChat}
+          onHistoryClick={handleHistoryClick}
+          onSettingsClick={handleSettingsClick}
+        />
 
         {/* Main Content */}
         {isHistoryView ? (
@@ -673,7 +309,7 @@ export function ChatPage() {
                 {historyError}
               </p>
               <button
-                onClick={() => navigate({ search: "" })}
+                onClick={handleBackToChat}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Start New Conversation
