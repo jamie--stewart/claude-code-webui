@@ -58,18 +58,23 @@ export function ToolResultDisplay({
     >
       {/* Header */}
       <div
-        className={`px-3 py-2 ${colorScheme.headerBg} flex items-center justify-between gap-2`}
+        className={`px-2 sm:px-3 py-1.5 sm:py-2 ${colorScheme.headerBg} flex items-center justify-between gap-1 sm:gap-2`}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-base flex-shrink-0" aria-label={status}>
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+          <span
+            className="text-sm sm:text-base flex-shrink-0"
+            aria-label={status}
+          >
             {statusIcon}
           </span>
-          <span className={`text-xs font-semibold ${colorScheme.header}`}>
+          <span
+            className={`text-xs sm:text-sm font-semibold ${colorScheme.header}`}
+          >
             {toolName}
           </span>
           {summary && (
             <span
-              className={`text-xs ${colorScheme.content} opacity-80 truncate`}
+              className={`text-xs sm:text-sm ${colorScheme.content} opacity-80 truncate hidden sm:inline`}
             >
               {summary}
             </span>
@@ -86,7 +91,7 @@ export function ToolResultDisplay({
 
       {/* Content */}
       {displayContent.trim() && (
-        <div className="px-3 py-2">
+        <div className="px-2 sm:px-3 py-1.5 sm:py-2">
           <ToolContentRenderer
             toolName={toolName}
             content={truncatedContent}
@@ -101,7 +106,7 @@ export function ToolResultDisplay({
               <div className="mt-2 flex items-center gap-2">
                 <button
                   onClick={() => setIsExpanded(!isExpanded)}
-                  className={`text-xs ${colorScheme.content} hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 rounded px-2 py-1`}
+                  className={`text-xs sm:text-sm ${colorScheme.content} hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 rounded px-2 py-1`}
                   aria-expanded={isExpanded}
                 >
                   {isExpanded ? (
@@ -138,7 +143,7 @@ function ToolMetadataDisplay({
     items.push(
       <span
         key="duration"
-        className={`text-xs ${colorScheme.content} opacity-70`}
+        className={`text-xs sm:text-sm ${colorScheme.content} opacity-70`}
       >
         {formatDuration(metadata.duration)}
       </span>,
@@ -149,7 +154,7 @@ function ToolMetadataDisplay({
     items.push(
       <span
         key="fileCount"
-        className={`text-xs ${colorScheme.content} opacity-70`}
+        className={`text-xs sm:text-sm ${colorScheme.content} opacity-70`}
       >
         {metadata.fileCount} file{metadata.fileCount !== 1 ? "s" : ""}
       </span>,
@@ -160,7 +165,7 @@ function ToolMetadataDisplay({
     items.push(
       <span
         key="lineCount"
-        className={`text-xs ${colorScheme.content} opacity-70`}
+        className={`text-xs sm:text-sm ${colorScheme.content} opacity-70`}
       >
         {metadata.lineCount} line{metadata.lineCount !== 1 ? "s" : ""}
       </span>,
@@ -171,7 +176,7 @@ function ToolMetadataDisplay({
     items.push(
       <span
         key="matchCount"
-        className={`text-xs ${colorScheme.content} opacity-70`}
+        className={`text-xs sm:text-sm ${colorScheme.content} opacity-70`}
       >
         {metadata.matchCount} match{metadata.matchCount !== 1 ? "es" : ""}
       </span>,
@@ -235,7 +240,7 @@ function ToolContentRenderer({
   // Default rendering
   return (
     <pre
-      className={`whitespace-pre-wrap ${colorScheme.content} text-xs font-mono leading-relaxed`}
+      className={`whitespace-pre-wrap ${colorScheme.content} text-xs sm:text-sm font-mono leading-relaxed`}
     >
       {content}
     </pre>
@@ -274,7 +279,7 @@ function FileOperationContent({
 
   // Plain text for other file content
   return (
-    <pre className="whitespace-pre-wrap text-emerald-700 dark:text-emerald-300 text-xs font-mono leading-relaxed bg-emerald-50/50 dark:bg-emerald-900/30 p-2 rounded">
+    <pre className="whitespace-pre-wrap text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm font-mono leading-relaxed bg-emerald-50/50 dark:bg-emerald-900/30 p-2 rounded">
       {content}
     </pre>
   );
@@ -291,7 +296,7 @@ function DiffDisplay({ content }: DiffDisplayProps) {
   const lines = content.split("\n");
 
   return (
-    <div className="font-mono text-xs leading-relaxed rounded overflow-hidden">
+    <div className="font-mono text-xs sm:text-sm leading-relaxed rounded overflow-hidden">
       {lines.map((line, index) => {
         let lineClass =
           "px-2 py-0.5 text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50";
@@ -336,19 +341,21 @@ function BashContent({ content, toolUseResult }: BashContentProps) {
   }
 
   return (
-    <div className="font-mono text-xs rounded overflow-hidden">
+    <div className="font-mono text-xs sm:text-sm rounded overflow-hidden">
       {/* Terminal header */}
-      <div className="bg-slate-800 dark:bg-slate-900 px-3 py-1.5 flex items-center gap-2">
+      <div className="bg-slate-800 dark:bg-slate-900 px-2 sm:px-3 py-1 sm:py-1.5 flex items-center gap-1 sm:gap-2">
         <div className="flex gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
           <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
           <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
         </div>
-        <span className="text-slate-400 text-xs ml-2">Terminal</span>
+        <span className="text-slate-400 text-xs sm:text-sm ml-1 sm:ml-2">
+          Terminal
+        </span>
       </div>
 
       {/* Terminal content */}
-      <div className="bg-slate-900 dark:bg-black p-3 text-slate-100">
+      <div className="bg-slate-900 dark:bg-black p-2 sm:p-3 text-slate-100">
         {stdout && (
           <pre className="whitespace-pre-wrap leading-relaxed">{stdout}</pre>
         )}
@@ -378,7 +385,7 @@ function SearchResultContent({ content, toolName }: SearchResultContentProps) {
 
   if (lines.length === 0) {
     return (
-      <div className="text-xs text-slate-500 dark:text-slate-400 italic py-2">
+      <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 italic py-2">
         No results found
       </div>
     );
@@ -391,9 +398,9 @@ function SearchResultContent({ content, toolName }: SearchResultContentProps) {
         {lines.map((line, index) => (
           <div
             key={index}
-            className="flex items-center gap-2 text-xs font-mono py-0.5 px-2 rounded hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
+            className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-mono py-0.5 px-1 sm:px-2 rounded hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
           >
-            <span className="text-emerald-500 dark:text-emerald-400">
+            <span className="text-emerald-500 dark:text-emerald-400 flex-shrink-0">
               <FileIcon />
             </span>
             <span className="text-emerald-800 dark:text-emerald-200 truncate">
@@ -417,9 +424,9 @@ function SearchResultContent({ content, toolName }: SearchResultContentProps) {
           return (
             <div
               key={index}
-              className="text-xs font-mono py-0.5 px-2 rounded hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
+              className="text-xs sm:text-sm font-mono py-0.5 px-1 sm:px-2 rounded hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
             >
-              <span className="text-emerald-600 dark:text-emerald-400">
+              <span className="text-emerald-600 dark:text-emerald-400 break-all">
                 {file}
               </span>
               <span className="text-slate-400">:</span>
@@ -427,7 +434,7 @@ function SearchResultContent({ content, toolName }: SearchResultContentProps) {
                 {lineNum}
               </span>
               <span className="text-slate-400">:</span>
-              <span className="text-slate-700 dark:text-slate-300 ml-1">
+              <span className="text-slate-700 dark:text-slate-300 ml-1 break-all">
                 {matchContent}
               </span>
             </div>
@@ -438,9 +445,9 @@ function SearchResultContent({ content, toolName }: SearchResultContentProps) {
         return (
           <div
             key={index}
-            className="flex items-center gap-2 text-xs font-mono py-0.5 px-2 rounded hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
+            className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-mono py-0.5 px-1 sm:px-2 rounded hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
           >
-            <span className="text-emerald-800 dark:text-emerald-200">
+            <span className="text-emerald-800 dark:text-emerald-200 break-all">
               {line}
             </span>
           </div>

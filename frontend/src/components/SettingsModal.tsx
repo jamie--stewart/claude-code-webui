@@ -46,8 +46,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         data-testid="settings-modal"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-800 dark:text-slate-100">
             Settings
           </h2>
           <button
@@ -60,8 +60,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
-          <div className="p-6">
+        <div className="overflow-y-auto max-h-[calc(90vh-100px)] sm:max-h-[calc(90vh-120px)]">
+          <div className="p-4 sm:p-6">
             <GeneralSettings />
           </div>
         </div>
