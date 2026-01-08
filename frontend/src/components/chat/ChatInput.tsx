@@ -1,11 +1,17 @@
 import React, { useRef, useEffect, useState } from "react";
 import { StopIcon, PhotoIcon } from "@heroicons/react/24/solid";
-import { UI_CONSTANTS, KEYBOARD_SHORTCUTS } from "../../utils/constants";
+import {
+  UI_CONSTANTS,
+  KEYBOARD_SHORTCUTS,
+  DEFAULT_SLASH_COMMANDS,
+} from "../../utils/constants";
 import { useEnterBehavior } from "../../hooks/useSettings";
+import { useCompletions } from "../../hooks/completions/useCompletions";
 import { PermissionInputPanel } from "./PermissionInputPanel";
 import { PlanPermissionInputPanel } from "./PlanPermissionInputPanel";
 import { AskUserQuestionPanel } from "./AskUserQuestionPanel";
 import { ImagePreview } from "./ImagePreview";
+import { CompletionsDropdown } from "./CompletionsDropdown";
 import type { PermissionMode, AskUserQuestion } from "../../types";
 import type { PastedImage } from "../../hooks/chat/useImagePaste";
 
@@ -66,6 +72,8 @@ interface ChatInputProps {
   images?: PastedImage[];
   onPaste?: (event: React.ClipboardEvent) => void;
   onRemoveImage?: (id: string) => void;
+  // Completions props
+  slashCommands?: string[];
 }
 
 export function ChatInput({
@@ -84,10 +92,20 @@ export function ChatInput({
   images = [],
   onPaste,
   onRemoveImage,
+  slashCommands = [...DEFAULT_SLASH_COMMANDS],
 }: ChatInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const { enterBehavior } = useEnterBehavior();
+
+  // Completions hook for slash command suggestions
+  const {
+    completionState,
+    handleInputChange: handleCompletionChange,
+    handleKeyDown: handleCompletionKeyDown,
+    selectCompletion,
+    setSelectedIndex,
+  } = useCompletions({ slashCommands });
 
   // Focus input when not loading and not in permission mode
   useEffect(() => {
@@ -116,6 +134,35 @@ export function ChatInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Check if completions dropdown should handle this key
+    if (completionState.isOpen && !isComposing) {
+      // Handle Enter/Tab for completion selection
+      if (e.key === "Enter" || e.key === "Tab") {
+        if (handleCompletionKeyDown(e)) {
+          e.preventDefault();
+          const newText = selectCompletion(
+            completionState.selectedIndex,
+            input,
+          );
+          onInputChange(newText);
+          // Move cursor to end of completion
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.selectionStart = newText.length;
+              inputRef.current.selectionEnd = newText.length;
+            }
+          }, 0);
+          return;
+        }
+      }
+
+      // Handle navigation keys (ArrowUp, ArrowDown, Escape)
+      if (handleCompletionKeyDown(e)) {
+        e.preventDefault();
+        return;
+      }
+    }
+
     // Permission mode toggle: Ctrl+Shift+M (all platforms)
     if (
       e.key === KEYBOARD_SHORTCUTS.PERMISSION_MODE_TOGGLE &&
@@ -260,11 +307,36 @@ export function ChatInput({
           <ImagePreview images={images} onRemove={onRemoveImage} />
         )}
         <div className="relative">
+          {/* Completions dropdown - positioned above input */}
+          {completionState.isOpen && (
+            <CompletionsDropdown
+              items={completionState.items}
+              selectedIndex={completionState.selectedIndex}
+              onSelect={(index) => {
+                const newText = selectCompletion(index, input);
+                onInputChange(newText);
+                // Refocus the input after selection
+                setTimeout(() => {
+                  if (inputRef.current) {
+                    inputRef.current.focus();
+                    inputRef.current.selectionStart = newText.length;
+                    inputRef.current.selectionEnd = newText.length;
+                  }
+                }, 0);
+              }}
+              onHover={setSelectedIndex}
+            />
+          )}
           <textarea
             ref={inputRef}
             data-testid="chat-input"
             value={input}
-            onChange={(e) => onInputChange(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              const cursorPosition = e.target.selectionStart || 0;
+              onInputChange(value);
+              handleCompletionChange(value, cursorPosition);
+            }}
             onKeyDown={handleKeyDown}
             onPaste={onPaste}
             onCompositionStart={handleCompositionStart}

@@ -1,7 +1,8 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useMemo } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import type { ProjectInfo } from "../types";
+import type { ProjectInfo, SystemMessage } from "../types";
 import { useClaudeStreaming } from "../hooks/useClaudeStreaming";
+import { DEFAULT_SLASH_COMMANDS } from "../utils/constants";
 import { useChatState } from "../hooks/chat/useChatState";
 import { useUnifiedPermissions } from "../hooks/chat/useUnifiedPermissions";
 import { useAbortController } from "../hooks/chat/useAbortController";
@@ -134,6 +135,29 @@ export function ChatPage() {
   // Image paste state management
   const { images, handlePaste, removeImage, clearImages, getImagesForRequest } =
     useImagePaste();
+
+  // Extract slash_commands from system init messages
+  // Falls back to defaults if no session has started yet
+  const slashCommands = useMemo(() => {
+    // Find the most recent system init message
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.role === "system") {
+        const systemMsg = msg as SystemMessage;
+        if (
+          systemMsg.type === "system" &&
+          systemMsg.subtype === "init" &&
+          "slash_commands" in systemMsg &&
+          Array.isArray(systemMsg.slash_commands) &&
+          systemMsg.slash_commands.length > 0
+        ) {
+          return systemMsg.slash_commands;
+        }
+      }
+    }
+    // Fall back to defaults
+    return [...DEFAULT_SLASH_COMMANDS];
+  }, [messages]);
 
   // Message sending hook
   const { sendMessage } = useMessageSending({
@@ -315,6 +339,7 @@ export function ChatPage() {
               images={images}
               onPaste={handlePaste}
               onRemoveImage={removeImage}
+              slashCommands={slashCommands}
             />
           </>
         )}
