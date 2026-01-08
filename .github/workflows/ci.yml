@@ -32,14 +32,15 @@ jobs:
           npm ci --prefix frontend
           npm ci --prefix backend
 
+      - name: Generate backend version.ts
+        run: node scripts/generate-version.js
+        working-directory: backend
+
       - name: Cache Deno dependencies
         run: |
-          cd backend
           deno install
           deno cache cli/deno.ts
-
-      - name: Generate backend version.ts
-        run: node backend/scripts/generate-version.js
+        working-directory: backend
 
       # Format checks (parallel)
       - name: Format check (Frontend)
@@ -106,7 +107,8 @@ jobs:
           npm ci --prefix backend
 
       - name: Generate backend version.ts
-        run: node backend/scripts/generate-version.js
+        run: node scripts/generate-version.js
+        working-directory: backend
 
       - name: Test frontend
         run: npm test --prefix frontend
@@ -141,7 +143,8 @@ jobs:
         working-directory: frontend
 
       - name: Generate backend version.ts
-        run: node backend/scripts/generate-version.js
+        run: node scripts/generate-version.js
+        working-directory: backend
 
       - name: Build frontend
         run: npm run build --prefix frontend
@@ -213,7 +216,8 @@ jobs:
         working-directory: frontend
 
       - name: Generate backend version.ts
-        run: node backend/scripts/generate-version.js
+        run: node scripts/generate-version.js
+        working-directory: backend
 
       - name: Build frontend
         run: npm run build --prefix frontend
