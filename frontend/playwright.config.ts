@@ -6,14 +6,16 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./",
   testMatch: ["tests/**/*.spec.ts"], // Only actual tests, not recording scripts
+  /* Global timeout for each test */
+  timeout: 30 * 1000,
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Retry on CI only - reduced from 2 to 1 to speed up CI */
+  retries: process.env.CI ? 1 : 0,
+  /* Run with 2 workers on CI for faster execution */
+  workers: process.env.CI ? 2 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [["html", { open: "never" }]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
