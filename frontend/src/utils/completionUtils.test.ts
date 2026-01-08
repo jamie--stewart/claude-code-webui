@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   detectCompletionTrigger,
   filterCompletions,
+  filterMentionCompletions,
   applyCompletion,
   slashCommandsToCompletionItems,
+  mentionItemsToCompletionItems,
 } from "./completionUtils";
-import type { CompletionItem } from "../hooks/completions/types";
+import type { CompletionItem, MentionItem } from "../hooks/completions/types";
 
 describe("detectCompletionTrigger", () => {
   describe("slash command triggers", () => {
@@ -187,5 +189,198 @@ describe("slashCommandsToCompletionItems", () => {
     const commands = ["/z", "/a", "/m"];
     const result = slashCommandsToCompletionItems(commands);
     expect(result.map((i) => i.value)).toEqual(["/z", "/a", "/m"]);
+  });
+});
+
+describe("detectCompletionTrigger - mention triggers", () => {
+  it("should detect @ at the start of input", () => {
+    const result = detectCompletionTrigger("@", 1);
+    expect(result).toEqual({
+      type: "mention",
+      partial: "",
+      startPosition: 0,
+    });
+  });
+
+  it("should detect @ with partial text", () => {
+    const result = detectCompletionTrigger("@src", 4);
+    expect(result).toEqual({
+      type: "mention",
+      partial: "src",
+      startPosition: 0,
+    });
+  });
+
+  it("should detect @ after a space", () => {
+    const result = detectCompletionTrigger("hello @file", 11);
+    expect(result).toEqual({
+      type: "mention",
+      partial: "file",
+      startPosition: 6,
+    });
+  });
+
+  it("should detect @ after a newline", () => {
+    const result = detectCompletionTrigger("line1\n@test", 11);
+    expect(result).toEqual({
+      type: "mention",
+      partial: "test",
+      startPosition: 6,
+    });
+  });
+
+  it("should return null for @ in the middle of a word", () => {
+    // e.g., "user@example" - the "@" is not after whitespace
+    const result = detectCompletionTrigger("user@example", 12);
+    expect(result).toBeNull();
+  });
+
+  it("should handle cursor in middle of mention", () => {
+    const result = detectCompletionTrigger("@hello world", 4);
+    expect(result).toEqual({
+      type: "mention",
+      partial: "hel",
+      startPosition: 0,
+    });
+  });
+});
+
+describe("filterMentionCompletions", () => {
+  const testMentionItems: CompletionItem[] = [
+    {
+      type: "mention",
+      value: "@src",
+      displayText: "@src",
+      path: "/project/src",
+      isDirectory: true,
+    },
+    {
+      type: "mention",
+      value: "@src/index.ts",
+      displayText: "@src/index.ts",
+      path: "/project/src/index.ts",
+      isDirectory: false,
+    },
+    {
+      type: "mention",
+      value: "@README.md",
+      displayText: "@README.md",
+      path: "/project/README.md",
+      isDirectory: false,
+    },
+    {
+      type: "mention",
+      value: "@package.json",
+      displayText: "@package.json",
+      path: "/project/package.json",
+      isDirectory: false,
+    },
+  ];
+
+  it("should return all items when partial is empty", () => {
+    const result = filterMentionCompletions(testMentionItems, "");
+    expect(result).toHaveLength(4);
+  });
+
+  it("should filter by prefix (case-insensitive)", () => {
+    const result = filterMentionCompletions(testMentionItems, "src");
+    expect(result).toHaveLength(2);
+    expect(result.map((i) => i.value)).toContain("@src");
+    expect(result.map((i) => i.value)).toContain("@src/index.ts");
+  });
+
+  it("should handle uppercase partial", () => {
+    const result = filterMentionCompletions(testMentionItems, "SRC");
+    expect(result).toHaveLength(2);
+  });
+
+  it("should return empty array when no matches", () => {
+    const result = filterMentionCompletions(testMentionItems, "xyz");
+    expect(result).toHaveLength(0);
+  });
+
+  it("should put directories before files for same prefix", () => {
+    const result = filterMentionCompletions(testMentionItems, "src");
+    // @src (directory) should come before @src/index.ts (file)
+    expect(result[0].value).toBe("@src");
+    expect(result[0].isDirectory).toBe(true);
+  });
+
+  it("should put exact match first", () => {
+    const items: CompletionItem[] = [
+      {
+        type: "mention",
+        value: "@srcs",
+        displayText: "@srcs",
+        isDirectory: true,
+      },
+      {
+        type: "mention",
+        value: "@src",
+        displayText: "@src",
+        isDirectory: true,
+      },
+      {
+        type: "mention",
+        value: "@src-lib",
+        displayText: "@src-lib",
+        isDirectory: true,
+      },
+    ];
+    const result = filterMentionCompletions(items, "src");
+    expect(result[0].value).toBe("@src");
+  });
+});
+
+describe("mentionItemsToCompletionItems", () => {
+  it("should convert MentionItem array to CompletionItem array", () => {
+    const mentions: MentionItem[] = [
+      {
+        type: "file",
+        value: "index.ts",
+        displayText: "index.ts",
+        path: "/project/index.ts",
+      },
+      {
+        type: "directory",
+        value: "src",
+        displayText: "src",
+        path: "/project/src",
+      },
+    ];
+    const result = mentionItemsToCompletionItems(mentions);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({
+      type: "mention",
+      value: "@index.ts",
+      displayText: "@index.ts",
+      description: "/project/index.ts",
+      path: "/project/index.ts",
+      isDirectory: false,
+    });
+    expect(result[1]).toEqual({
+      type: "mention",
+      value: "@src",
+      displayText: "@src",
+      description: "/project/src",
+      path: "/project/src",
+      isDirectory: true,
+    });
+  });
+
+  it("should handle empty array", () => {
+    const result = mentionItemsToCompletionItems([]);
+    expect(result).toHaveLength(0);
+  });
+
+  it("should preserve order", () => {
+    const mentions: MentionItem[] = [
+      { type: "file", value: "z.ts", displayText: "z.ts", path: "/z.ts" },
+      { type: "file", value: "a.ts", displayText: "a.ts", path: "/a.ts" },
+      { type: "file", value: "m.ts", displayText: "m.ts", path: "/m.ts" },
+    ];
+    const result = mentionItemsToCompletionItems(mentions);
+    expect(result.map((i) => i.value)).toEqual(["@z.ts", "@a.ts", "@m.ts"]);
   });
 });

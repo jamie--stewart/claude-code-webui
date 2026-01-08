@@ -6,6 +6,7 @@ export const API_CONFIG = {
     PROJECTS: "/api/projects",
     HISTORIES: "/api/projects",
     CONVERSATIONS: "/api/projects",
+    MENTIONS: "/api/mentions",
   },
 } as const;
 
@@ -41,4 +42,13 @@ export const getConversationUrl = (
   sessionId: string,
 ) => {
   return `${API_CONFIG.ENDPOINTS.CONVERSATIONS}/${encodedProjectName}/histories/${sessionId}`;
+};
+
+// Helper function to get mentions URL
+export const getMentionsUrl = (cwd: string, query: string) => {
+  const params = new URLSearchParams({ cwd });
+  if (query) {
+    params.append("query", query);
+  }
+  return `${API_CONFIG.ENDPOINTS.MENTIONS}?${params.toString()}`;
 };
