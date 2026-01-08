@@ -22,30 +22,18 @@ interface PlanModeRequest {
 }
 
 interface UsePermissionHandlersOptions {
-  // Permissions hook values
+  // From useUnifiedPermissions
   allowedTools: string[];
   permissionRequest: PermissionRequest | null;
   planModeRequest: PlanModeRequest | null;
   askUserQuestionRequest: AskUserQuestionRequest | null;
   pendingAskUserQuestionCount: number;
-
-  // Permissions hook functions
-  showPermissionRequest: (
-    toolName: string,
-    patterns: string[],
-    toolUseId: string,
-  ) => void;
   closePermissionRequest: () => void;
+  closePlanModeRequest: () => void;
+  closeAskUserQuestion: () => void;
   allowToolTemporary: (pattern: string, baseTools?: string[]) => string[];
   allowToolPermanent: (pattern: string, baseTools?: string[]) => string[];
-  showPlanModeRequest: (planContent: string) => void;
-  closePlanModeRequest: () => void;
-  updatePermissionMode: (mode: PermissionMode) => void;
-  showAskUserQuestion: (
-    questions: AskUserQuestion[],
-    toolUseId: string,
-  ) => void;
-  closeAskUserQuestion: () => void;
+  setPermissionMode: (mode: PermissionMode) => void;
 
   // Session state
   currentSessionId: string | null;
@@ -61,6 +49,16 @@ interface UsePermissionHandlersOptions {
   ) => Promise<void>;
 }
 
+/**
+ * Hook for creating permission action handlers.
+ *
+ * This hook bridges the permission state from useUnifiedPermissions with
+ * the sendMessage function from useMessageSending. It creates callback
+ * handlers for permission dialogs, plan approval, and user questions.
+ *
+ * Kept separate from useUnifiedPermissions to avoid circular dependencies
+ * with useMessageSending.
+ */
 export function usePermissionHandlers(options: UsePermissionHandlersOptions) {
   const {
     allowedTools,
@@ -68,38 +66,15 @@ export function usePermissionHandlers(options: UsePermissionHandlersOptions) {
     planModeRequest,
     askUserQuestionRequest,
     pendingAskUserQuestionCount,
-    showPermissionRequest,
     closePermissionRequest,
+    closePlanModeRequest,
+    closeAskUserQuestion,
     allowToolTemporary,
     allowToolPermanent,
-    showPlanModeRequest,
-    closePlanModeRequest,
-    updatePermissionMode,
-    showAskUserQuestion,
-    closeAskUserQuestion,
+    setPermissionMode,
     currentSessionId,
     sendMessage,
   } = options;
-
-  const handlePermissionError = useCallback(
-    (toolName: string, patterns: string[], toolUseId: string) => {
-      // Check if this is an ExitPlanMode permission error
-      if (patterns.includes("ExitPlanMode")) {
-        // For ExitPlanMode, show plan permission interface instead of regular permission
-        showPlanModeRequest(""); // Empty plan content since it was already displayed
-      } else {
-        showPermissionRequest(toolName, patterns, toolUseId);
-      }
-    },
-    [showPermissionRequest, showPlanModeRequest],
-  );
-
-  const handleAskUserQuestion = useCallback(
-    (questions: AskUserQuestion[], toolUseId: string) => {
-      showAskUserQuestion(questions, toolUseId);
-    },
-    [showAskUserQuestion],
-  );
 
   // Permission request handlers
   const handlePermissionAllow = useCallback(() => {
@@ -154,13 +129,13 @@ export function usePermissionHandlers(options: UsePermissionHandlersOptions) {
 
   // Plan mode request handlers
   const handlePlanAcceptWithEdits = useCallback(() => {
-    updatePermissionMode("acceptEdits");
+    setPermissionMode("acceptEdits");
     closePlanModeRequest();
     if (currentSessionId) {
       sendMessage("accept", allowedTools, true, "acceptEdits");
     }
   }, [
-    updatePermissionMode,
+    setPermissionMode,
     closePlanModeRequest,
     currentSessionId,
     sendMessage,
@@ -168,13 +143,13 @@ export function usePermissionHandlers(options: UsePermissionHandlersOptions) {
   ]);
 
   const handlePlanAcceptDefault = useCallback(() => {
-    updatePermissionMode("default");
+    setPermissionMode("default");
     closePlanModeRequest();
     if (currentSessionId) {
       sendMessage("accept", allowedTools, true, "default");
     }
   }, [
-    updatePermissionMode,
+    setPermissionMode,
     closePlanModeRequest,
     currentSessionId,
     sendMessage,
@@ -182,9 +157,9 @@ export function usePermissionHandlers(options: UsePermissionHandlersOptions) {
   ]);
 
   const handlePlanKeepPlanning = useCallback(() => {
-    updatePermissionMode("plan");
+    setPermissionMode("plan");
     closePlanModeRequest();
-  }, [updatePermissionMode, closePlanModeRequest]);
+  }, [setPermissionMode, closePlanModeRequest]);
 
   // AskUserQuestion handlers
   const handleAskUserQuestionSubmit = useCallback(
@@ -268,8 +243,6 @@ export function usePermissionHandlers(options: UsePermissionHandlersOptions) {
     : undefined;
 
   return {
-    handlePermissionError,
-    handleAskUserQuestion,
     handlePermissionAllow,
     handlePermissionAllowPermanent,
     handlePermissionDeny,

@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { type Theme } from "../types/settings";
 import { STORAGE_KEYS, getStorageItem, setStorageItem } from "../utils/storage";
 import { useChatState } from "../hooks/chat/useChatState";
-import { usePermissions } from "../hooks/chat/usePermissions";
+import { useUnifiedPermissions } from "../hooks/chat/useUnifiedPermissions";
 import { useDemoAutomation } from "../hooks/useDemoAutomation";
 import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
@@ -125,11 +125,11 @@ export function DemoPage() {
     closePermissionRequest,
     allowToolPermanent,
     showPermissionRequest,
-    isPermissionMode,
+    isPermissionDialogOpen,
     planModeRequest,
     showPlanModeRequest,
     closePlanModeRequest,
-  } = usePermissions();
+  } = useUnifiedPermissions();
 
   const handlePermissionError = useCallback(
     (toolName: string, patterns: string[], toolUseId: string) => {
@@ -441,7 +441,7 @@ export function DemoPage() {
           onAbort={() => {}} // No-op in demo
           permissionMode="default" // Demo always uses default mode
           onPermissionModeChange={() => {}} // No-op in demo
-          showPermissions={isPermissionMode}
+          showPermissions={isPermissionDialogOpen}
           permissionData={permissionData}
           planPermissionData={planPermissionData}
         />

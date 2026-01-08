@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { AllMessage, ChatMessage } from "../types";
 import { useChatState } from "./chat/useChatState";
-import { usePermissions } from "./chat/usePermissions";
+import { useUnifiedPermissions } from "./chat/useUnifiedPermissions";
 import {
   scenarioToStream,
   type MockScenarioStep,
@@ -125,7 +125,7 @@ export function useDemoAutomation(
   const finalGenerateRequestId = externalGenerateRequestId || generateRequestId;
 
   // Permissions - use external if provided, otherwise use internal
-  const permissionsHook = usePermissions();
+  const permissionsHook = useUnifiedPermissions();
   const finalShowPermissionRequest =
     externalShowPermissionRequest || permissionsHook.showPermissionRequest;
 
@@ -308,7 +308,7 @@ export function useDemoAutomation(
                   // Since this is ExitPlanMode, show plan permission request
                   if (toolResult.content === "Exit plan mode?") {
                     // This indicates an ExitPlanMode permission error
-                    // Check if showPlanModeRequest is available (it should be from usePermissions)
+                    // Check if showPlanModeRequest is available (it should be from useUnifiedPermissions)
                     // For now, trigger regular permission request with ExitPlanMode pattern
                     // The ChatPage.tsx logic will convert this to plan mode request
                     finalShowPermissionRequest(

@@ -1,10 +1,9 @@
 import { useEffect, useCallback, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import type { ProjectInfo, AskUserQuestion } from "../types";
+import type { ProjectInfo } from "../types";
 import { useClaudeStreaming } from "../hooks/useClaudeStreaming";
 import { useChatState } from "../hooks/chat/useChatState";
-import { usePermissions } from "../hooks/chat/usePermissions";
-import { usePermissionMode } from "../hooks/chat/usePermissionMode";
+import { useUnifiedPermissions } from "../hooks/chat/useUnifiedPermissions";
 import { useAbortController } from "../hooks/chat/useAbortController";
 import { useImagePaste } from "../hooks/chat/useImagePaste";
 import { useNavigation } from "../hooks/chat/useNavigation";
@@ -47,8 +46,24 @@ export function ChatPage() {
   const { processStreamLine } = useClaudeStreaming();
   const { abortRequest, createAbortHandler } = useAbortController();
 
-  // Permission mode state management
-  const { permissionMode, setPermissionMode } = usePermissionMode();
+  // Unified permission state management (combines mode state and dialog state)
+  const {
+    permissionMode,
+    setPermissionMode,
+    allowedTools,
+    permissionRequest,
+    closePermissionRequest,
+    allowToolTemporary,
+    allowToolPermanent,
+    planModeRequest,
+    closePlanModeRequest,
+    askUserQuestionRequest,
+    closeAskUserQuestion,
+    pendingAskUserQuestionCount,
+    isPermissionDialogOpen,
+    handlePermissionError,
+    handleAskUserQuestion,
+  } = useUnifiedPermissions();
 
   // Navigation handlers
   const {
@@ -116,48 +131,9 @@ export function ChatPage() {
     initialSessionId: loadedSessionId || undefined,
   });
 
-  const {
-    allowedTools,
-    permissionRequest,
-    showPermissionRequest,
-    closePermissionRequest,
-    allowToolTemporary,
-    allowToolPermanent,
-    isPermissionMode,
-    planModeRequest,
-    showPlanModeRequest,
-    closePlanModeRequest,
-    updatePermissionMode,
-    askUserQuestionRequest,
-    showAskUserQuestion,
-    closeAskUserQuestion,
-    pendingAskUserQuestionCount,
-  } = usePermissions({
-    onPermissionModeChange: setPermissionMode,
-  });
-
   // Image paste state management
   const { images, handlePaste, removeImage, clearImages, getImagesForRequest } =
     useImagePaste();
-
-  // Permission error and ask user question handlers (defined before useMessageSending)
-  const handlePermissionError = useCallback(
-    (toolName: string, patterns: string[], toolUseId: string) => {
-      if (patterns.includes("ExitPlanMode")) {
-        showPlanModeRequest("");
-      } else {
-        showPermissionRequest(toolName, patterns, toolUseId);
-      }
-    },
-    [showPermissionRequest, showPlanModeRequest],
-  );
-
-  const handleAskUserQuestion = useCallback(
-    (questions: AskUserQuestion[], toolUseId: string) => {
-      showAskUserQuestion(questions, toolUseId);
-    },
-    [showAskUserQuestion],
-  );
 
   // Message sending hook
   const { sendMessage } = useMessageSending({
@@ -195,15 +171,12 @@ export function ChatPage() {
       planModeRequest,
       askUserQuestionRequest,
       pendingAskUserQuestionCount,
-      showPermissionRequest,
       closePermissionRequest,
+      closePlanModeRequest,
+      closeAskUserQuestion,
       allowToolTemporary,
       allowToolPermanent,
-      showPlanModeRequest,
-      closePlanModeRequest,
-      updatePermissionMode,
-      showAskUserQuestion,
-      closeAskUserQuestion,
+      setPermissionMode,
       currentSessionId,
       sendMessage,
     });
@@ -335,7 +308,7 @@ export function ChatPage() {
               onAbort={handleAbort}
               permissionMode={permissionMode}
               onPermissionModeChange={setPermissionMode}
-              showPermissions={isPermissionMode}
+              showPermissions={isPermissionDialogOpen}
               permissionData={permissionData}
               planPermissionData={planPermissionData}
               askUserQuestionData={askUserQuestionData}
