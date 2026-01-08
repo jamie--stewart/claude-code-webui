@@ -102,3 +102,27 @@ export interface AskUserQuestion {
   multiSelect: boolean;
   options: AskUserQuestionOption[];
 }
+
+/**
+ * @ Mention types for file/directory completions
+ */
+
+/** Represents a single @ mention completion item */
+export interface MentionItem {
+  /** Type of the item */
+  type: "file" | "directory";
+  /** The value to insert (relative path) */
+  value: string;
+  /** Display text shown in dropdown */
+  displayText: string;
+  /** Full relative path with forward slashes */
+  path: string;
+}
+
+/** Response from the mentions API endpoint */
+export interface MentionsResponse {
+  /** List of matching mention items */
+  items: MentionItem[];
+  /** Whether results were truncated due to limits */
+  truncated: boolean;
+}
