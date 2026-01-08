@@ -5,6 +5,7 @@
 import type {
   CompletionItem,
   TriggerDetectionResult,
+  MentionItem,
 } from "../hooks/completions/types";
 
 /**
@@ -12,6 +13,10 @@ import type {
  * Returns trigger info if a trigger is found, null otherwise.
  *
  * A "/" trigger is valid when:
+ * - It's at the start of the input
+ * - It's preceded by whitespace (space or newline)
+ *
+ * A "@" trigger is valid when:
  * - It's at the start of the input
  * - It's preceded by whitespace (space or newline)
  *
@@ -46,11 +51,20 @@ export function detectCompletionTrigger(
     };
   }
 
+  // Mention trigger: "@" at start of word
+  if (word.startsWith("@")) {
+    return {
+      type: "mention",
+      partial: word.slice(1), // Remove the "@" prefix
+      startPosition: wordStart,
+    };
+  }
+
   return null;
 }
 
 /**
- * Filter completion items based on partial input.
+ * Filter slash command completion items based on partial input.
  * Uses case-insensitive prefix matching and sorts by relevance.
  *
  * @param items - All available completion items
@@ -81,6 +95,51 @@ export function filterCompletions(
 
     // Otherwise sort alphabetically
     return aValue.localeCompare(bValue);
+  });
+}
+
+/**
+ * Filter mention completion items based on partial input.
+ * Uses case-insensitive matching against the display text.
+ *
+ * @param items - All available mention completion items
+ * @param partial - The partial text to match against
+ * @returns Filtered and sorted completion items
+ */
+export function filterMentionCompletions(
+  items: CompletionItem[],
+  partial: string,
+): CompletionItem[] {
+  const lowerPartial = partial.toLowerCase();
+
+  // Filter items that match the partial text (case-insensitive)
+  const filtered = items.filter((item) => {
+    // For mentions, match against displayText without the "@" prefix
+    const searchText = item.displayText.startsWith("@")
+      ? item.displayText.slice(1).toLowerCase()
+      : item.displayText.toLowerCase();
+    return searchText.startsWith(lowerPartial);
+  });
+
+  // Sort: exact matches first, directories first within same match level, then alphabetically
+  return filtered.sort((a, b) => {
+    const aText = a.displayText.startsWith("@")
+      ? a.displayText.slice(1).toLowerCase()
+      : a.displayText.toLowerCase();
+    const bText = b.displayText.startsWith("@")
+      ? b.displayText.slice(1).toLowerCase()
+      : b.displayText.toLowerCase();
+
+    // Exact match comes first
+    if (aText === lowerPartial && bText !== lowerPartial) return -1;
+    if (bText === lowerPartial && aText !== lowerPartial) return 1;
+
+    // Directories before files (if same prefix match)
+    if (a.isDirectory && !b.isDirectory) return -1;
+    if (!a.isDirectory && b.isDirectory) return 1;
+
+    // Otherwise sort alphabetically
+    return aText.localeCompare(bText);
   });
 }
 
@@ -124,5 +183,24 @@ export function slashCommandsToCompletionItems(
     type: "slash_command" as const,
     value: cmd,
     displayText: cmd,
+  }));
+}
+
+/**
+ * Convert an array of MentionItem objects to CompletionItem objects.
+ *
+ * @param items - Array of MentionItem objects from the API
+ * @returns Array of CompletionItem objects
+ */
+export function mentionItemsToCompletionItems(
+  items: MentionItem[],
+): CompletionItem[] {
+  return items.map((item) => ({
+    type: "mention" as const,
+    value: `@${item.value}`,
+    displayText: `@${item.displayText}`,
+    description: item.path,
+    path: item.path,
+    isDirectory: item.type === "directory",
   }));
 }
