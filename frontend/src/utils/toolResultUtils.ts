@@ -249,7 +249,7 @@ function parseBashResult(
  */
 function parseEditResult(
   content: string,
-  summary: string,
+  _summary: string,
   toolUseResult?: unknown,
 ): ParsedToolResult {
   const metadata: ToolResultMetadata = {};

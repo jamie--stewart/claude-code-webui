@@ -1,4 +1,7 @@
-import type { AskUserQuestionMessage } from "../../types";
+import type {
+  AskUserQuestionMessage,
+  AskUserQuestionOption,
+} from "../../types";
 import { TimestampComponent } from "../TimestampComponent";
 import { MessageContainer } from "./MessageContainer";
 
@@ -44,14 +47,16 @@ export function AskUserQuestionMessageComponent({
               {question.question}
             </p>
             <div className="flex flex-wrap gap-2">
-              {question.options.map((option, optIdx) => (
-                <div
-                  key={optIdx}
-                  className="px-3 py-1 text-xs bg-blue-100/50 dark:bg-blue-800/20 text-blue-700 dark:text-blue-300 rounded-full"
-                >
-                  {option.label}
-                </div>
-              ))}
+              {question.options.map(
+                (option: AskUserQuestionOption, optIdx: number) => (
+                  <div
+                    key={optIdx}
+                    className="px-3 py-1 text-xs bg-blue-100/50 dark:bg-blue-800/20 text-blue-700 dark:text-blue-300 rounded-full"
+                  >
+                    {option.label}
+                  </div>
+                ),
+              )}
             </div>
           </div>
         ))}

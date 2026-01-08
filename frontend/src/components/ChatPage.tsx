@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import type { ProjectInfo, SystemMessage } from "../types";
+import type { ProjectInfo } from "../types";
 import { useClaudeStreaming } from "../hooks/useClaudeStreaming";
 import { DEFAULT_SLASH_COMMANDS } from "../utils/constants";
 import { useChatState } from "../hooks/chat/useChatState";
@@ -142,17 +142,15 @@ export function ChatPage() {
     // Find the most recent system init message
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
-      if (msg.role === "system") {
-        const systemMsg = msg as SystemMessage;
-        if (
-          systemMsg.type === "system" &&
-          systemMsg.subtype === "init" &&
-          "slash_commands" in systemMsg &&
-          Array.isArray(systemMsg.slash_commands) &&
-          systemMsg.slash_commands.length > 0
-        ) {
-          return systemMsg.slash_commands;
-        }
+      if (
+        msg.type === "system" &&
+        "subtype" in msg &&
+        msg.subtype === "init" &&
+        "slash_commands" in msg &&
+        Array.isArray(msg.slash_commands) &&
+        msg.slash_commands.length > 0
+      ) {
+        return msg.slash_commands;
       }
     }
     // Fall back to defaults

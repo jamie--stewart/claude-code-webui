@@ -112,10 +112,13 @@ export interface TodoMessage {
 }
 
 // AskUserQuestion types - imported from shared package
-export type {
-  AskUserQuestionOption,
-  AskUserQuestion,
+import type {
+  AskUserQuestionOption as SharedAskUserQuestionOption,
+  AskUserQuestion as SharedAskUserQuestion,
 } from "../../shared/types";
+
+export type AskUserQuestionOption = SharedAskUserQuestionOption;
+export type AskUserQuestion = SharedAskUserQuestion;
 
 // AskUserQuestion message for user interaction
 export interface AskUserQuestionMessage {
