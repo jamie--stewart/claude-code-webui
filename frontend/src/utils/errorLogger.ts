@@ -347,10 +347,13 @@ class ErrorLogger {
  * Child logger with preset context
  */
 class ChildLogger {
-  constructor(
-    private parent: ErrorLogger,
-    private context: LogContext,
-  ) {}
+  private parent: ErrorLogger;
+  private context: LogContext;
+
+  constructor(parent: ErrorLogger, context: LogContext) {
+    this.parent = parent;
+    this.context = context;
+  }
 
   private mergeContext(additionalContext?: LogContext): LogContext {
     return {

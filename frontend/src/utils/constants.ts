@@ -21,6 +21,21 @@ export const MESSAGE_CONSTANTS = {
   SESSION_ID_DISPLAY_LENGTH: 8,
 } as const;
 
+// Default slash commands (fallback when session hasn't started)
+// These are commonly used commands that work as a reasonable fallback
+// before session data with actual slash_commands arrives from the SDK
+export const DEFAULT_SLASH_COMMANDS = [
+  "/help",
+  "/clear",
+  "/compact",
+  "/config",
+  "/memory",
+  "/review",
+  "/commit",
+  "/pr",
+  "/init",
+] as const;
+
 // Tool-related constants
 export const TOOL_CONSTANTS = {
   MULTI_WORD_COMMANDS: ["cargo", "git", "npm", "yarn", "docker"],

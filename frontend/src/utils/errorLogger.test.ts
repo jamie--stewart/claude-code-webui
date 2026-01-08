@@ -120,7 +120,10 @@ describe("ErrorLogger", () => {
 
       expect(consoleSpy.error).toHaveBeenCalled();
       // The error object is passed as second argument
-      const errorArg = consoleSpy.error.mock.calls[0][1];
+      const errorArg = consoleSpy.error.mock.calls[0][1] as {
+        name: string;
+        message: string;
+      };
       expect(errorArg).toBeDefined();
       expect(errorArg.name).toBe("Error");
       expect(errorArg.message).toBe("Test error");
@@ -132,7 +135,10 @@ describe("ErrorLogger", () => {
       logger.error("An error occurred", "string error");
 
       expect(consoleSpy.error).toHaveBeenCalled();
-      const errorArg = consoleSpy.error.mock.calls[0][1];
+      const errorArg = consoleSpy.error.mock.calls[0][1] as {
+        name: string;
+        message: string;
+      };
       expect(errorArg).toBeDefined();
       expect(errorArg.name).toBe("UnknownError");
       expect(errorArg.message).toBe("string error");

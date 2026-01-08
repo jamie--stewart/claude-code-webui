@@ -172,7 +172,7 @@ export function AskUserQuestionPanel({
   ]);
 
   // Check if submit should be enabled
-  const canSubmit = questions.every((q, idx) => {
+  const canSubmit = questions.every((_, idx) => {
     const selectedAnswers = answers[idx] || [];
     if (selectedAnswers.length === 0) return false;
     if (selectedAnswers.includes("__other__") && !otherInputs[idx]?.trim()) {

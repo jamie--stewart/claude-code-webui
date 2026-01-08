@@ -2,8 +2,8 @@ import React, { useState, useMemo } from "react";
 import { CodeBlock } from "./CodeBlock";
 import { CopyButton } from "./CopyButton";
 import { isBashToolUseResult } from "../../utils/contentUtils";
+import type { ToolResultMetadata } from "../../utils/toolResultUtils";
 import {
-  ToolResultMetadata,
   parseToolResult,
   formatDuration,
   getStatusIcon,
