@@ -127,6 +127,21 @@ Create `.env` file in project root:
 PORT=9000
 ```
 
+### Base Path Configuration
+
+When hosting the frontend under a sub-path (e.g., behind a reverse proxy at `/s/session-id/`), configure the base path:
+
+```bash
+VITE_BASE_PATH=/s/session-id/
+```
+
+This configures:
+
+- Vite's asset loading paths
+- React Router's basename for route matching
+
+Without this, routes won't match when the app is served from a non-root path.
+
 ### Running the Application
 
 ```bash

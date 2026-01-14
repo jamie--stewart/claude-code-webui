@@ -11,8 +11,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, resolve(__dirname, ".."), "");
   const apiPort = env.PORT || "8080";
+  const basePath = env.VITE_BASE_PATH || "/";
 
   return {
+    base: basePath,
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
