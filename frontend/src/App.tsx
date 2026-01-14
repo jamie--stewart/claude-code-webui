@@ -4,7 +4,7 @@ import { ProjectSelector } from "./components/ProjectSelector";
 import { ChatPage } from "./components/ChatPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SettingsProvider } from "./contexts/SettingsContext";
-import { isDevelopment } from "./utils/environment";
+import { isDevelopment, getBasePath } from "./utils/environment";
 
 // Lazy load DemoPage only in development
 const DemoPage = isDevelopment()
@@ -16,10 +16,14 @@ const DemoPage = isDevelopment()
   : null;
 
 function App() {
+  const basePath = getBasePath();
+  // Remove trailing slash for basename (React Router expects no trailing slash)
+  const basename = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
+
   return (
     <SettingsProvider>
       <ErrorBoundary>
-        <Router>
+        <Router basename={basename}>
           <Routes>
             <Route path="/" element={<ProjectSelector />} />
             <Route path="/projects/*" element={<ChatPage />} />

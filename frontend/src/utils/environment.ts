@@ -17,3 +17,12 @@ export function isDevelopment(): boolean {
 export function isProduction(): boolean {
   return import.meta.env.PROD;
 }
+
+/**
+ * Get the base path for the application
+ * Used for routing and asset loading when hosted under a sub-path
+ * @returns the base path (e.g., "/" or "/s/session-id/")
+ */
+export function getBasePath(): string {
+  return import.meta.env.BASE_URL || "/";
+}
