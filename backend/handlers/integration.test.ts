@@ -6,6 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Hono } from "hono";
+import type { ConfigContext } from "../middleware/config";
 import { handleAbortRequest } from "./abort";
 import { handleProjectsRequest } from "./projects";
 import { handleHistoriesRequest } from "./histories";
@@ -67,8 +68,18 @@ vi.mock("../history/conversationLoader", () => ({
  * Creates a test Hono app with all routes configured
  */
 function createTestApp() {
-  const app = new Hono();
+  const app = new Hono<ConfigContext>();
   const requestAbortControllers = new Map<string, AbortController>();
+
+  // Add config middleware (no runtime for basic tests)
+  app.use("*", async (c, next) => {
+    c.set("config", {
+      debugMode: false,
+      runtime: undefined as never, // Tests don't use runtime
+      cliPath: "/usr/bin/claude",
+    });
+    await next();
+  });
 
   // Configure routes matching the real app
   app.get("/api/projects", (c) => handleProjectsRequest(c));
