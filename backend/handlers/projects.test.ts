@@ -99,8 +99,18 @@ describe("Projects Handler", () => {
       expect(result).toEqual({
         data: {
           projects: [
-            { path: "/path/to/project1", encodedName: "encoded-project1" },
-            { path: "/path/to/project2", encodedName: "encoded-project2" },
+            {
+              path: "/path/to/project1",
+              encodedName: "encoded-project1",
+              displayName: "project1",
+              isGitRepo: false,
+            },
+            {
+              path: "/path/to/project2",
+              encodedName: "encoded-project2",
+              displayName: "project2",
+              isGitRepo: false,
+            },
           ],
         },
         status: undefined,
@@ -131,8 +141,18 @@ describe("Projects Handler", () => {
       expect(result).toEqual({
         data: {
           projects: [
-            { path: "/path/to/project1", encodedName: "encoded-project1" },
-            { path: "/path/to/project3", encodedName: "encoded-project3" },
+            {
+              path: "/path/to/project1",
+              encodedName: "encoded-project1",
+              displayName: "project1",
+              isGitRepo: false,
+            },
+            {
+              path: "/path/to/project3",
+              encodedName: "encoded-project3",
+              displayName: "project3",
+              isGitRepo: false,
+            },
           ],
         },
         status: undefined,
