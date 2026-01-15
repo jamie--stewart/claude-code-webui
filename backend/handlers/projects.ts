@@ -1,10 +1,12 @@
 import { Context } from "hono";
 import { basename } from "node:path";
 import type { ProjectInfo, ProjectsResponse } from "../../shared/types.ts";
+import type { ConfigContext } from "../middleware/config.ts";
 import { getEncodedProjectName } from "../history/pathUtils.ts";
 import { logger } from "../utils/logger.ts";
 import { readTextFile } from "../utils/fs.ts";
 import { getHomeDir } from "../utils/os.ts";
+import { getProjectInfo } from "../utils/projectInfo.ts";
 
 /**
  * Handles GET /api/projects requests
@@ -12,35 +14,59 @@ import { getHomeDir } from "../utils/os.ts";
  * @param c - Hono context object
  * @returns JSON response with projects array
  */
-export async function handleProjectsRequest(c: Context) {
+export async function handleProjectsRequest(c: Context<ConfigContext>) {
   try {
     const homeDir = getHomeDir();
     if (!homeDir) {
       return c.json({ error: "Home directory not found" }, 500);
     }
 
+    // Get runtime from context for git operations
+    const config = c.get("config");
+    const runtime = config?.runtime;
+
     const claudeConfigPath = `${homeDir}/.claude.json`;
 
     try {
       const configContent = await readTextFile(claudeConfigPath);
-      const config = JSON.parse(configContent);
+      const claudeConfig = JSON.parse(configContent);
 
-      if (config.projects && typeof config.projects === "object") {
-        const projectPaths = Object.keys(config.projects);
+      if (claudeConfig.projects && typeof claudeConfig.projects === "object") {
+        const projectPaths = Object.keys(claudeConfig.projects);
 
-        // Get encoded names for each project, only include projects with history
+        // Get project info for each project, only include projects with history
         const projects: ProjectInfo[] = [];
         for (const path of projectPaths) {
           const encodedName = await getEncodedProjectName(path);
           // Only include projects that have history directories
           if (encodedName) {
-            // TODO: Use getProjectInfo() for full git detection (task: 5ah)
-            projects.push({
-              path,
-              encodedName,
-              displayName: basename(path),
-              isGitRepo: false, // Will be detected in next update
-            });
+            // Use getProjectInfo() if runtime is available, otherwise fallback to basic info
+            if (runtime) {
+              try {
+                const projectInfo = await getProjectInfo(runtime, path);
+                // Override encodedName with the one from history (ensures consistency)
+                projects.push({
+                  ...projectInfo,
+                  encodedName,
+                });
+              } catch {
+                // Fallback to basic info if git detection fails
+                projects.push({
+                  path,
+                  encodedName,
+                  displayName: basename(path),
+                  isGitRepo: false,
+                });
+              }
+            } else {
+              // No runtime available, use basic info
+              projects.push({
+                path,
+                encodedName,
+                displayName: basename(path),
+                isGitRepo: false,
+              });
+            }
           }
         }
 

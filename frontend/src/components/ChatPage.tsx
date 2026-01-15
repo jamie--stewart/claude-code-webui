@@ -11,6 +11,7 @@ import { useNavigation } from "../hooks/chat/useNavigation";
 import { useMessageSending } from "../hooks/chat/useMessageSending";
 import { usePermissionHandlers } from "../hooks/chat/usePermissionHandlers";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { SettingsModal } from "./SettingsModal";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ChatInput } from "./chat/ChatInput";
@@ -76,8 +77,8 @@ export function ChatPage() {
     handleStartNewConversation,
   } = useNavigation({ workingDirectory });
 
-  // Get encoded name for current working directory
-  const getEncodedName = useCallback(() => {
+  // Find current project based on working directory
+  const currentProject = useMemo(() => {
     if (!workingDirectory || !projects.length) {
       return null;
     }
@@ -91,10 +92,16 @@ export function ChatPage() {
     );
 
     // Use normalized result if exact match fails
-    const finalProject = project || normalizedProject;
-
-    return finalProject?.encodedName || null;
+    return project || normalizedProject || null;
   }, [workingDirectory, projects]);
+
+  // Get encoded name for current working directory
+  const getEncodedName = useCallback(() => {
+    return currentProject?.encodedName || null;
+  }, [currentProject]);
+
+  // Update page title based on current project
+  usePageTitle(currentProject);
 
   // Load conversation history if sessionId is provided
   const {
