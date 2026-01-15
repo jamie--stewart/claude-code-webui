@@ -97,8 +97,9 @@ describe("Git Utilities", () => {
     });
 
     it("should detect current directory as git repo", async () => {
-      // The workspace should be a git repo based on the context
-      const result = await getGitInfo(runtime, "/workspace");
+      // Don't pass a path - let git discover the repo from the current directory
+      // This works regardless of whether we're in the repo root or a subdirectory
+      const result = await getGitInfo(runtime);
       expect(result.isGitRepo).toBe(true);
       expect(result.commitSha).not.toBeNull();
     });
