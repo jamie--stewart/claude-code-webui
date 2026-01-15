@@ -257,6 +257,7 @@ export function ChatPage() {
         {/* Header */}
         <ChatHeader
           workingDirectory={workingDirectory}
+          project={currentProject}
           sessionId={sessionId}
           isHistoryView={isHistoryView}
           isLoadedConversation={isLoadedConversation}
@@ -273,6 +274,7 @@ export function ChatPage() {
           <HistoryView
             workingDirectory={workingDirectory || ""}
             encodedName={getEncodedName()}
+            project={currentProject}
             onBack={handleBackToChat}
           />
         ) : historyLoading ? (

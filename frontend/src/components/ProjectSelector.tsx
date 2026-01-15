@@ -5,6 +5,7 @@ import type { ProjectsResponse, ProjectInfo } from "../types";
 import { getProjectsUrl } from "../config/api";
 import { SettingsButton } from "./SettingsButton";
 import { SettingsModal } from "./SettingsModal";
+import { ProjectDisplay } from "./ProjectDisplay";
 
 export function ProjectSelector() {
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
@@ -91,9 +92,12 @@ export function ProjectSelector() {
                   className="w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-left"
                 >
                   <FolderIcon className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500 dark:text-slate-400 flex-shrink-0" />
-                  <span className="text-slate-800 dark:text-slate-200 font-mono text-xs sm:text-sm truncate">
-                    {project.path}
-                  </span>
+                  <ProjectDisplay
+                    project={project}
+                    variant="card"
+                    showPath={true}
+                    className="flex-1 min-w-0"
+                  />
                 </button>
               ))}
             </>

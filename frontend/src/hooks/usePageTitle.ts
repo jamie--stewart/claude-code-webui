@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { ProjectInfo } from "../types";
-import { formatProjectTitle } from "../components/ProjectDisplay";
+import { formatProjectTitle } from "../utils/projectUtils";
 
 const BASE_TITLE = "Claude Code Web UI";
 
