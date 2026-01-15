@@ -2,6 +2,8 @@
 declare global {
   interface Window {
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
+    /** Runtime base path override for reverse proxy hosting */
+    __BASE_PATH__?: string;
   }
 
   interface FileSystemDirectoryHandle {
