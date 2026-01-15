@@ -109,6 +109,8 @@ describe("Integration: API Routes", () => {
       expect(json.projects[0]).toEqual({
         path: "/path/to/project",
         encodedName: "encoded-project",
+        displayName: "project",
+        isGitRepo: false,
       });
     });
 

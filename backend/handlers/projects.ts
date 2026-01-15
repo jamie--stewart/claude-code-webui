@@ -1,4 +1,5 @@
 import { Context } from "hono";
+import { basename } from "node:path";
 import type { ProjectInfo, ProjectsResponse } from "../../shared/types.ts";
 import { getEncodedProjectName } from "../history/pathUtils.ts";
 import { logger } from "../utils/logger.ts";
@@ -33,9 +34,12 @@ export async function handleProjectsRequest(c: Context) {
           const encodedName = await getEncodedProjectName(path);
           // Only include projects that have history directories
           if (encodedName) {
+            // TODO: Use getProjectInfo() for full git detection (task: 5ah)
             projects.push({
               path,
               encodedName,
+              displayName: basename(path),
+              isGitRepo: false, // Will be detected in next update
             });
           }
         }

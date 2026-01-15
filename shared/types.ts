@@ -50,8 +50,22 @@ export interface AbortRequest {
 }
 
 export interface ProjectInfo {
+  /** Filesystem path to the project */
   path: string;
+  /** URL-safe encoded project name */
   encodedName: string;
+  /** Formatted display name (e.g., "owner/repo on branch" or path) */
+  displayName: string;
+  /** Git remote URL if available */
+  repoUrl?: string;
+  /** Current git branch name (null if detached HEAD) */
+  branch?: string;
+  /** PR number if running in PR context */
+  pr?: number;
+  /** Short commit SHA (useful for detached HEAD) */
+  commitSha?: string;
+  /** Whether this directory is a git repository */
+  isGitRepo: boolean;
 }
 
 export interface ProjectsResponse {
