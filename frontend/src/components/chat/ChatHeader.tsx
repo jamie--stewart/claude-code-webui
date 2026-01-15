@@ -1,9 +1,12 @@
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
+import type { ProjectInfo } from "../../types";
 import { SettingsButton } from "../SettingsButton";
 import { HistoryButton } from "./HistoryButton";
+import { ProjectDisplay } from "../ProjectDisplay";
 
 interface ChatHeaderProps {
   workingDirectory?: string;
+  project?: ProjectInfo | null;
   sessionId: string | null;
   isHistoryView: boolean;
   isLoadedConversation: boolean;
@@ -17,6 +20,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({
   workingDirectory,
+  project,
   sessionId,
   isHistoryView,
   isLoadedConversation,
@@ -78,13 +82,17 @@ export function ChatHeader({
             </div>
           </nav>
           {workingDirectory && (
-            <div className="flex items-center text-sm font-mono mt-1">
+            <div className="flex items-center text-sm mt-1">
               <button
                 onClick={onBackToProjectChat}
                 className="text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 rounded px-1 -mx-1 cursor-pointer"
                 aria-label={`Return to new chat in ${workingDirectory}`}
               >
-                {workingDirectory}
+                {project ? (
+                  <ProjectDisplay project={project} variant="breadcrumb" />
+                ) : (
+                  <span className="font-mono">{workingDirectory}</span>
+                )}
               </button>
               {sessionId && (
                 <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">

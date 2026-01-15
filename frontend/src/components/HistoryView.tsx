@@ -1,15 +1,21 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import type { ConversationSummary } from "../../../shared/types";
+import type { ConversationSummary, ProjectInfo } from "../../../shared/types";
 import { getHistoriesUrl } from "../config/api";
+import { ProjectDisplay } from "./ProjectDisplay";
 
 interface HistoryViewProps {
   workingDirectory: string;
   encodedName: string | null;
+  project?: ProjectInfo | null;
   onBack: () => void;
 }
 
-export function HistoryView({ encodedName }: HistoryViewProps) {
+export function HistoryView({
+  encodedName,
+  project,
+  workingDirectory,
+}: HistoryViewProps) {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +133,21 @@ export function HistoryView({ encodedName }: HistoryViewProps) {
   return (
     <div className="flex-1 overflow-hidden">
       <div className="p-6 h-full flex flex-col">
+        {/* Project context indicator */}
+        <div className="mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Project
+          </span>
+          <div className="mt-1">
+            {project ? (
+              <ProjectDisplay project={project} variant="breadcrumb" />
+            ) : (
+              <span className="text-sm font-mono text-slate-700 dark:text-slate-300">
+                {workingDirectory}
+              </span>
+            )}
+          </div>
+        </div>
         <div className="grid gap-4 flex-1 overflow-y-auto">
           {conversations.map((conversation) => (
             <div
