@@ -27,6 +27,10 @@ describe("environment utilities", () => {
   });
 
   describe("getBasePath", () => {
+    afterEach(() => {
+      delete window.__BASE_PATH__;
+    });
+
     it("should return import.meta.env.BASE_URL", () => {
       const result = getBasePath();
       // BASE_URL is set by Vite, defaults to "/" in test environment
@@ -36,6 +40,12 @@ describe("environment utilities", () => {
     it("should return a string", () => {
       const result = getBasePath();
       expect(typeof result).toBe("string");
+    });
+
+    it("should use window.__BASE_PATH__ if set", () => {
+      window.__BASE_PATH__ = "/s/test-session/";
+      const result = getBasePath();
+      expect(result).toBe("/s/test-session/");
     });
   });
 });

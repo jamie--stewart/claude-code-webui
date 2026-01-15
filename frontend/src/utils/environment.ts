@@ -24,5 +24,10 @@ export function isProduction(): boolean {
  * @returns the base path (e.g., "/" or "/s/session-id/")
  */
 export function getBasePath(): string {
+  // Runtime override (set by container entrypoint for reverse proxy hosting)
+  if (typeof window !== "undefined" && window.__BASE_PATH__) {
+    return window.__BASE_PATH__;
+  }
+  // Build-time config (Vite)
   return import.meta.env.BASE_URL || "/";
 }
